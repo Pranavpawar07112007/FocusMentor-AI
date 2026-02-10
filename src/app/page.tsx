@@ -159,21 +159,39 @@ export default function Home() {
                   focusState={focusState}
                 />
               </div>
-              <div className="relative aspect-video w-full max-w-md overflow-hidden rounded-lg bg-black self-start">
-                <video
-                  ref={webcamVideoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  className="h-full w-full object-cover"
-                />
-                 {(status === 'idle' || status === 'stopped' || status === 'initializing') && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 p-4 text-center">
-                    <p className="text-sm text-white">
-                      Your camera preview will appear here during a session.
-                    </p>
-                  </div>
-                )}
+              <div className="flex flex-col gap-4 self-start">
+                <div className="relative aspect-video w-full max-w-md overflow-hidden rounded-lg bg-black">
+                  <video
+                    ref={webcamVideoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className="h-full w-full object-cover"
+                  />
+                  {(status === 'idle' || status === 'stopped' || status === 'initializing') && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 p-4 text-center">
+                      <p className="text-sm text-white">
+                        Your camera preview will appear here during a session.
+                      </p>
+                    </div>
+                  )}
+                </div>
+                <div className="relative aspect-video w-full max-w-md overflow-hidden rounded-lg bg-black">
+                  <video
+                    ref={screenVideoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className="h-full w-full object-cover"
+                  />
+                  {(status === 'idle' || status === 'stopped' || status === 'initializing') && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 p-4 text-center">
+                      <p className="text-sm text-white">
+                        Your screen share will be shown here.
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -209,8 +227,6 @@ export default function Home() {
           </div>
         </div>
       </main>
-
-      <video ref={screenVideoRef} autoPlay playsInline className="hidden" />
     </div>
   );
 }
