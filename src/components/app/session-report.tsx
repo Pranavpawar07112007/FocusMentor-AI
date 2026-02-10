@@ -7,14 +7,14 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { format } from 'date-fns';
-import { Code, Sigma, Library, Coffee, UserMinus, Clock, Goal as GoalIcon, CheckCircle2 } from 'lucide-react';
+import { Code, Sigma, Library, Coffee, UserMinus, Clock, Goal as GoalIcon, CheckCircle2, FileQuestion } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
 type SessionReportProps = {
   session: WithId<StudySession>;
 };
 
-const categoryIcons: Record<ActivityCategory, React.ReactNode> = {
+const categoryIcons: Record<string, React.ReactNode> = {
   'Coding': <Code className="h-5 w-5 text-blue-400" />,
   'Mathematics': <Sigma className="h-5 w-5 text-purple-400" />,
   'Academic Research': <Library className="h-5 w-5 text-green-400" />,
@@ -22,12 +22,25 @@ const categoryIcons: Record<ActivityCategory, React.ReactNode> = {
   'Away': <UserMinus className="h-5 w-5 text-amber-400" />,
 };
 
-const COLORS: Record<ActivityCategory, string> = {
+const COLORS: Record<string, string> = {
     'Coding': '#60a5fa', // blue-400
     'Mathematics': '#c084fc', // purple-400
     'Academic Research': '#4ade80', // green-400
     'Distraction': '#f87171', // red-400
     'Away': '#facc15', // amber-400
+};
+
+const stringToColor = (str: string) => {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    let color = '#';
+    for (let i = 0; i < 3; i++) {
+      const value = (hash >> (i * 8)) & 0xFF;
+      color += ('00' + value.toString(16)).substr(-2);
+    }
+    return color;
 };
 
 const formatDuration = (seconds: number) => {
@@ -44,7 +57,7 @@ export function SessionReport({ session }: SessionReportProps) {
     const glassmorphismStyle = 'bg-card/30 backdrop-blur-lg border border-border/50 shadow-lg';
 
     const activityData = React.useMemo(() => {
-        const data: { [key in ActivityCategory]?: number } = {};
+        const data: { [key: string]: number } = {};
         session.logs.forEach(log => {
             if (!data[log.category]) {
                 data[log.category] = 0;
@@ -53,7 +66,7 @@ export function SessionReport({ session }: SessionReportProps) {
         });
 
         return Object.entries(data).map(([name, value]) => ({
-            name: name as ActivityCategory,
+            name: name,
             value: Math.round(value / 60), // value in minutes
         })).filter(item => item.value > 0);
     }, [session.logs]);
@@ -97,7 +110,7 @@ export function SessionReport({ session }: SessionReportProps) {
               <PieChart>
                 <Pie data={activityData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} fill="#8884d8" label>
                   {activityData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[entry.name]} />
+                    <Cell key={`cell-${index}`} fill={COLORS[entry.name] || stringToColor(entry.name)} />
                   ))}
                 </Pie>
                 <Tooltip formatter={(value: number) => `${value} minutes`} />
@@ -158,7 +171,7 @@ export function SessionReport({ session }: SessionReportProps) {
               {session.logs.sort((a, b) => a.timestamp - b.timestamp).map((log, index) => (
                 <div key={log.id || index} className="flex items-start gap-4">
                   <div className="flex-shrink-0 w-10 h-10 rounded-full bg-background/50 flex items-center justify-center -ml-5 ring-4 ring-background">
-                    {categoryIcons[log.category]}
+                    {categoryIcons[log.category] || <FileQuestion className="h-5 w-5 text-muted-foreground" />}
                   </div>
                   <div className="flex-grow">
                     <div className="flex items-center justify-between">

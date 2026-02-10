@@ -3,7 +3,13 @@ import type { Timestamp } from 'firebase/firestore';
 export type SessionStatus = 'idle' | 'initializing' | 'running' | 'paused' | 'stopped';
 export type FocusState = 'focus' | 'away' | 'distraction';
 
-export type ActivityCategory = 'Coding' | 'Mathematics' | 'Academic Research' | 'Distraction' | 'Away';
+export type ActivityCategory = string;
+
+export type CustomCategory = {
+  id: string;
+  name: string;
+  userId: string;
+};
 
 export type LogEntry = {
   id: string;

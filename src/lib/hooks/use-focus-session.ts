@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { FaceLandmarker, FilesetResolver } from '@mediapipe/tasks-vision';
 import {
   collection,
@@ -9,8 +9,8 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { analyzeScreenActivity } from '@/ai/flows/analyze-screen-activity';
 import { summarizeStudySession } from '@/ai/flows/summarize-study-session';
-import type { SessionStatus, FocusState, LogEntry, StudySession, ActivityCategory, Goal } from '@/types';
-import { useFirebase } from '@/firebase';
+import type { SessionStatus, FocusState, LogEntry, StudySession, ActivityCategory, Goal, CustomCategory } from '@/types';
+import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 const AWAY_THRESHOLD = 3; // seconds
@@ -38,6 +38,13 @@ export function useFocusSession({
 
   const { toast } = useToast();
   const { firestore, user } = useFirebase();
+
+  const customCategoriesQuery = useMemoFirebase(() => {
+    if (!user || !firestore) return null;
+    return collection(firestore, 'users', user.uid, 'custom_categories');
+  }, [user, firestore]);
+  const { data: customCategoriesData } = useCollection<CustomCategory>(customCategoriesQuery);
+  const customCategoryNames = useMemo(() => customCategoriesData?.map(c => c.name) || [], [customCategoriesData]);
 
   const faceLandmarkerRef = useRef<FaceLandmarker | null>(null);
   const webcamStreamRef = useRef<MediaStream | null>(null);
@@ -113,7 +120,7 @@ export function useFocusSession({
     const dataUri = canvas.toDataURL('image/jpeg');
 
     try {
-      const result = await analyzeScreenActivity({ photoDataUri: dataUri });
+      const result = await analyzeScreenActivity({ photoDataUri: dataUri, customCategories: customCategoryNames });
       if (result.category === 'Distraction') {
         setFocusState('distraction');
       } else {
@@ -132,7 +139,7 @@ export function useFocusSession({
         description: 'Could not analyze screen activity.',
       });
     }
-  }, [screenVideoRef, addLog, updateFirestore, toast, status]);
+  }, [screenVideoRef, addLog, updateFirestore, toast, status, customCategoryNames]);
 
   const predictWebcam = useCallback(() => {
     const video = webcamVideoRef.current;

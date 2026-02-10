@@ -146,6 +146,26 @@ service cloud.firestore {
           allow delete: if isExistingOwner(userId);
         }
       }
+
+      /**
+       * @description Manages a user's custom activity categories.
+       * @path /users/{userId}/custom_categories/{categoryId}
+       * @allow (list, create, delete) A user managing their own custom categories.
+       * @principle Enforces document ownership for all operations.
+       */
+      match /custom_categories/{categoryId} {
+        allow read, delete: if isOwner(userId);
+        allow create: if isOwner(userId) 
+                      && request.resource.data.userId == userId 
+                      && request.resource.data.name is string 
+                      && request.resource.data.name.size() > 0 
+                      && request.resource.data.name.size() < 50;
+        allow update: if isExistingOwner(userId) 
+                      && request.resource.data.userId == resource.data.userId
+                      && request.resource.data.name is string 
+                      && request.resource.data.name.size() > 0 
+                      && request.resource.data.name.size() < 50;
+      }
     }
   }
 }

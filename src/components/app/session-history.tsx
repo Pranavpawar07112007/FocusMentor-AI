@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { format, formatDistanceToNow, startOfDay, endOfDay } from 'date-fns';
-import { Loader, Code, Sigma, Library, Coffee, UserMinus, Trash2 } from 'lucide-react';
+import { Loader, Code, Sigma, Library, Coffee, UserMinus, Trash2, FileQuestion } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import React, { useState } from 'react';
 import {
@@ -30,7 +30,7 @@ import { useToast } from '@/hooks/use-toast';
 import { deleteDocumentNonBlocking } from '@/firebase';
 import Link from 'next/link';
 
-const categoryIcons: Record<LogEntry['category'], React.ReactNode> = {
+const categoryIcons: Record<string, React.ReactNode> = {
   'Coding': <Code className="h-4 w-4 text-blue-400" />,
   'Mathematics': <Sigma className="h-4 w-4 text-purple-400" />,
   'Academic Research': <Library className="h-4 w-4 text-green-400" />,
@@ -164,7 +164,7 @@ export function SessionHistory({ selectedDate }: SessionHistoryProps) {
                   <div className="space-y-4">
                     {session.logs.map((log) => (
                       <div key={log.id} className="flex items-start gap-3 text-sm">
-                        <div>{categoryIcons[log.category]}</div>
+                        <div>{categoryIcons[log.category] || <FileQuestion className="h-4 w-4 text-muted-foreground" />}</div>
                         <div className="flex-grow">
                           <p className="font-medium">{log.category}</p>
                           <p className="text-xs text-muted-foreground">

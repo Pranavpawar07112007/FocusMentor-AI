@@ -3,14 +3,14 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, XAxis, YAxis, Toolti
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import type { LogEntry, ActivityCategory } from '@/types';
-import { Code, Sigma, Library, Coffee, UserMinus } from 'lucide-react';
+import { Code, Sigma, Library, Coffee, UserMinus, FileQuestion } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 type StatsDashboardProps = {
   logs: LogEntry[];
 };
 
-const categoryIcons: Record<ActivityCategory, React.ReactNode> = {
+const categoryIcons: Record<string, React.ReactNode> = {
   'Coding': <Code className="h-4 w-4 text-blue-400" />,
   'Mathematics': <Sigma className="h-4 w-4 text-purple-400" />,
   'Academic Research': <Library className="h-4 w-4 text-green-400" />,
@@ -27,7 +27,7 @@ const formatDuration = (seconds: number) => {
 
 const StatsDashboard: React.FC<StatsDashboardProps> = ({ logs }) => {
   const chartData = useMemo(() => {
-    const data: { [key in ActivityCategory]?: number } = {};
+    const data: { [key: string]: number } = {};
     logs.forEach(log => {
       if (log.category) {
         if (!data[log.category]) {
@@ -38,7 +38,7 @@ const StatsDashboard: React.FC<StatsDashboardProps> = ({ logs }) => {
     });
 
     return Object.entries(data).map(([name, value]) => ({
-      name: name as ActivityCategory,
+      name: name,
       minutes: Math.round(value / 60),
     })).sort((a, b) => b.minutes - a.minutes);
   }, [logs]);
@@ -85,7 +85,7 @@ const StatsDashboard: React.FC<StatsDashboardProps> = ({ logs }) => {
           <div className="space-y-4">
             {sortedLogs.length > 0 ? sortedLogs.map((log) => (
               <div key={log.id} className="flex items-start gap-3 text-sm">
-                <div>{categoryIcons[log.category]}</div>
+                <div>{categoryIcons[log.category] || <FileQuestion className="h-4 w-4 text-muted-foreground" />}</div>
                 <div className="flex-grow">
                   <p className="font-medium">{log.category}</p>
                   <p className="text-muted-foreground text-xs">{log.reasoning}</p>

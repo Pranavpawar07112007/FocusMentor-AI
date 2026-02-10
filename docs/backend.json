@@ -41,14 +41,7 @@
                 "type": "number"
               },
               "category": {
-                "type": "string",
-                "enum": [
-                  "Coding",
-                  "Mathematics",
-                  "Academic Research",
-                  "Distraction",
-                  "Away"
-                ]
+                "type": "string"
               },
               "reasoning": {
                 "type": "string"
@@ -115,6 +108,25 @@
       "required": [
         "id"
       ]
+    },
+    "CustomCategory": {
+      "title": "CustomCategory",
+      "type": "object",
+      "description": "A user-defined category for activities.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The name of the custom category."
+        },
+        "userId": {
+          "type": "string",
+          "description": "The ID of the user who created this category."
+        }
+      },
+      "required": [
+        "name",
+        "userId"
+      ]
     }
   },
   "auth": {
@@ -135,6 +147,12 @@
         "$ref": "#/backend/entities/StudySession"
       },
       "description": "Stores study session data for a user. Includes denormalized 'userId' for authorization independence."
+    },
+    "/users/{userId}/custom_categories/{categoryId}": {
+      "schema": {
+        "$ref": "#/backend/entities/CustomCategory"
+      },
+      "description": "Stores user-defined custom categories for activity logging."
     }
   }
 }
