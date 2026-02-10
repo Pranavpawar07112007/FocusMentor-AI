@@ -1,0 +1,151 @@
+/**
+ * Core Philosophy: This ruleset enforces a strict user-ownership model. All data is private
+ * and accessible only to the authenticated user who created it. There is no public or shared data.
+ *
+ * Data Structure: All application data is hierarchically nested under the `/users/{userId}` path,
+ * where `{userId}` is the Firebase Authentication UID of the user. This structure ensures that
+ * all data, including study sessions and their logs, is partitioned by user.
+ *
+ * Key Security Decisions:
+ * - Default Deny: All operations are denied by default. Access must be explicitly granted.
+ * - Authentication Required: No anonymous access is permitted for any data. A user must be signed in.
+ * - Strict Ownership: Users can only read, write, or delete data within their own data tree
+ *   (i.e., under `/users/{their-own-userId}`).
+ * - No User Listing: It is not possible to list documents in the top-level `/users` collection.
+ *
+ * Denormalization for Authorization: To ensure fast and secure authorization checks, critical
+ * ownership information is denormalized. For example, a `StudySession` document contains a `userId`
+ * field. The rules validate on creation that this field matches the authenticated user, and on
+ * update that it is immutable. This avoids costly and slow `get()` calls to parent documents.
+ *
+ * Structural Segregation: The entire data model uses structural segregation by user. Each user's
+ * data is stored in a completely separate document tree, which provides strong security and
+ * prevents accidental data leakage in list queries.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    //-------------------------------------------------------------------------
+    // Helper Functions
+    //-------------------------------------------------------------------------
+
+    /**
+     * Checks if the user is authenticated.
+     */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /**
+     * Checks if the currently authenticated user's UID matches the given userId.
+     * This is the primary function for verifying document ownership.
+     */
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    /**
+     * Checks for ownership on an existing document. Used for update and delete
+     * operations to prevent acting on non-existent data.
+     */
+    function isExistingOwner(userId) {
+      return isOwner(userId) && resource != null;
+    }
+
+    /**
+     * On create, validates that the user document's internal `id` field
+     * matches the document's ID in the path, ensuring relational integrity.
+     */
+    function isValidUserDocOnCreate(userId) {
+      return request.resource.data.id == userId;
+    }
+
+    /**
+     * On update, ensures the user document's internal `id` is immutable.
+     * This prevents re-assigning ownership.
+     */
+    function isUserDocImmutable() {
+      return request.resource.data.id == resource.data.id;
+    }
+
+    /**
+     * On create, validates that the StudySession's internal `userId` field
+     * matches the user ID in the path.
+     */
+    function isValidStudySessionOnCreate(userId) {
+      return request.resource.data.userId == userId;
+    }
+
+    /**
+     * On update, ensures the StudySession's internal `userId` is immutable.
+     */
+    function isStudySessionOwnershipImmutable() {
+      return request.resource.data.userId == resource.data.userId;
+    }
+    
+    /**
+     * On create, validates that the LogEntry's internal `userId` and `studySessionId`
+     * fields match the IDs in the path.
+     */
+    function isValidLogEntryOnCreate(userId, studySessionId) {
+      return request.resource.data.userId == userId && request.resource.data.studySessionId == studySessionId;
+    }
+
+    /**
+     * On update, ensures the LogEntry's ownership fields are immutable.
+     */
+    function isLogEntryOwnershipImmutable() {
+      return request.resource.data.userId == resource.data.userId && request.resource.data.studySessionId == resource.data.studySessionId;
+    }
+
+    //-------------------------------------------------------------------------
+    // Collection Rules
+    //-------------------------------------------------------------------------
+
+    /**
+     * @description Manages user profile documents.
+     * @path /users/{userId}
+     * @allow (create) An authenticated user creating their own user profile document for the first time.
+     * @deny (get) An authenticated user trying to read another user's profile.
+     * @principle Restricts access to a user's own data tree and allows self-creation of a root profile.
+     */
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow list: if false;
+      allow create: if isOwner(userId) && isValidUserDocOnCreate(userId);
+      allow update: if isExistingOwner(userId) && isUserDocImmutable();
+      allow delete: if isExistingOwner(userId);
+
+      /**
+       * @description Manages a user's private collection of study sessions.
+       * @path /users/{userId}/study_sessions/{studySessionId}
+       * @allow (list) An authenticated user listing their own study sessions.
+       * @deny (create) An authenticated user trying to create a study session for another user.
+       * @principle Enforces document ownership for all operations and validates relational integrity on create.
+       */
+      match /study_sessions/{studySessionId} {
+        allow get: if isOwner(userId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidStudySessionOnCreate(userId);
+        allow update: if isExistingOwner(userId) && isStudySessionOwnershipImmutable();
+        allow delete: if isExistingOwner(userId);
+
+        /**
+         * @description Manages log entries for a specific study session.
+         * @path /users/{userId}/study_sessions/{studySessionId}/log_entries/{logEntryId}
+         * @allow (create) An authenticated user adding a new log entry to their own study session.
+         * @deny (get) An authenticated user trying to read log entries from another user's session.
+         * @principle Extends path-based ownership to nested subcollections, ensuring data privacy.
+         */
+        match /log_entries/{logEntryId} {
+          allow get: if isOwner(userId);
+          allow list: if isOwner(userId);
+          allow create: if isOwner(userId) && isValidLogEntryOnCreate(userId, studySessionId);
+          allow update: if isExistingOwner(userId) && isLogEntryOwnershipImmutable();
+          allow delete: if isExistingOwner(userId);
+        }
+      }
+    }
+  }
+}
