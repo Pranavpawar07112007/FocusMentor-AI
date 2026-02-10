@@ -82,7 +82,7 @@ export default function Home() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background font-body text-foreground">
-      <header className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between border-b border-border/20 bg-background/80 p-4 backdrop-blur-lg">
+      <header className="fixed top-4 left-4 right-4 z-50 flex h-16 items-center justify-between rounded-lg border border-border/20 bg-background/80 px-6 backdrop-blur-lg">
         <h1 className="text-xl font-bold text-primary font-headline">
           FocusMentor AI
         </h1>
@@ -136,7 +136,7 @@ export default function Home() {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {status !== 'idle' && status !== 'stopped' && (
+          {(status === 'running' || status === 'paused') && (
             <Button
               variant="destructive"
               size="sm"

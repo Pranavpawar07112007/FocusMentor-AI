@@ -41,20 +41,18 @@ export default function HistoryPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
-      <header className="fixed top-4 left-4 right-4 z-40 rounded-lg border border-border/20 bg-background/80 backdrop-blur-lg">
-        <div className="container flex h-16 items-center justify-between">
-          <h1 className="text-xl font-bold text-primary font-headline">
-            <Link href="/">FocusMentor AI</Link>
-          </h1>
-          <div className="flex items-center gap-4">
-            <Button asChild variant="outline">
-              <Link href="/">Back to Focus</Link>
-            </Button>
-            <ThemeToggle />
-          </div>
+      <header className="fixed top-4 left-4 right-4 z-40 flex h-16 items-center justify-between rounded-lg border border-border/20 bg-background/80 px-6 backdrop-blur-lg">
+        <h1 className="text-xl font-bold text-primary font-headline">
+          <Link href="/">FocusMentor AI</Link>
+        </h1>
+        <div className="flex items-center gap-4">
+          <Button asChild variant="outline">
+            <Link href="/">Back to Focus</Link>
+          </Button>
+          <ThemeToggle />
         </div>
       </header>
-      <main className="container mx-auto max-w-4xl flex-grow p-4 pt-28 sm:p-6 lg:p-8 lg:pt-32">
+      <main className="container mx-auto max-w-4xl flex-grow px-4 pt-24 sm:px-6 lg:px-8">
         <div
           className={`mb-8 rounded-lg p-6 ${glassmorphismStyle}`}
         >
