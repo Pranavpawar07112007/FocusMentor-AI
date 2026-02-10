@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import FocusRing from '@/components/app/focus-ring';
 import StatsDashboard from '@/components/app/stats-dashboard';
 import { useFocusSession } from '@/lib/hooks/use-focus-session';
-import { LogEntry } from '@/types';
+import { SessionHistory } from '@/components/app/session-history';
 
 export default function Home() {
   const [privacyShield, setPrivacyShield] = useState(false);
@@ -95,6 +95,7 @@ export default function Home() {
           
           <div className={`rounded-xl p-6 flex flex-col ${glassmorphismStyle}`}>
             <StatsDashboard logs={logs} />
+            <SessionHistory />
           </div>
         </div>
       </main>

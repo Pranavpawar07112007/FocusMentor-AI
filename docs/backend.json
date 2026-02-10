@@ -32,12 +32,42 @@
           "type": "array",
           "description": "An array of AI analysis logs, each containing a timestamp, category, and reasoning.",
           "items": {
-            "type": "string"
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "timestamp": {
+                "type": "number"
+              },
+              "category": {
+                "type": "string",
+                "enum": [
+                  "Coding",
+                  "Mathematics",
+                  "Academic Research",
+                  "Distraction",
+                  "Away"
+                ]
+              },
+              "reasoning": {
+                "type": "string"
+              },
+              "duration": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "id",
+              "timestamp",
+              "category",
+              "reasoning",
+              "duration"
+            ]
           }
         }
       },
       "required": [
-        "id",
         "userId",
         "startTime",
         "totalFocusTime",
@@ -61,116 +91,27 @@
         }
       },
       "required": [
-        "id",
-        "email"
-      ]
-    },
-    "LogEntry": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "LogEntry",
-      "type": "object",
-      "description": "Represents a log entry from the AI screen auditor.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the LogEntry entity."
-        },
-        "studySessionId": {
-          "type": "string",
-          "description": "Reference to the StudySession this log entry belongs to. (Relationship: StudySession 1:N LogEntry)"
-        },
-        "timestamp": {
-          "type": "string",
-          "description": "The timestamp of the log entry.",
-          "format": "date-time"
-        },
-        "category": {
-          "type": "string",
-          "description": "The category of activity detected by the AI (e.g., Coding, Mathematics, Distraction)."
-        },
-        "reasoning": {
-          "type": "string",
-          "description": "The reasoning provided by the AI for the categorization."
-        }
-      },
-      "required": [
-        "id",
-        "studySessionId",
-        "timestamp",
-        "category",
-        "reasoning"
+        "id"
       ]
     }
   },
   "auth": {
     "providers": [
-      "password",
       "anonymous"
     ]
   },
   "firestore": {
-    "structure": [
-      {
-        "path": "/users/{userId}",
-        "definition": {
-          "entityName": "User",
-          "schema": {
-            "$ref": "#/backend/entities/User"
-          },
-          "description": "Stores user profile data. Secure via path-based ownership, ensuring only the user can access their data.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The Firebase Authentication UID of the user."
-            }
-          ]
-        }
+    "/users/{userId}": {
+      "schema": {
+        "$ref": "#/backend/entities/User"
       },
-      {
-        "path": "/users/{userId}/study_sessions/{studySessionId}",
-        "definition": {
-          "entityName": "StudySession",
-          "schema": {
-            "$ref": "#/backend/entities/StudySession"
-          },
-          "description": "Stores study session data. Includes denormalized 'userId' for authorization independence.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The Firebase Authentication UID of the user."
-            },
-            {
-              "name": "studySessionId",
-              "description": "The unique identifier of the study session."
-            }
-          ]
-        }
+      "description": "Stores user profile data. Secure via path-based ownership, ensuring only the user can access their data."
+    },
+    "/users/{userId}/study_sessions/{studySessionId}": {
+      "schema": {
+        "$ref": "#/backend/entities/StudySession"
       },
-      {
-        "path": "/users/{userId}/study_sessions/{studySessionId}/log_entries/{logEntryId}",
-        "definition": {
-          "entityName": "LogEntry",
-          "schema": {
-            "$ref": "#/backend/entities/LogEntry"
-          },
-          "description": "Stores log entries for a specific study session. Includes denormalized 'userId' and 'studySessionId' for authorization independence.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The Firebase Authentication UID of the user."
-            },
-            {
-              "name": "studySessionId",
-              "description": "The unique identifier of the study session."
-            },
-            {
-              "name": "logEntryId",
-              "description": "The unique identifier of the log entry."
-            }
-          ]
-        }
-      }
-    ],
-    "reasoning": "The Firestore structure is designed to optimize for security, scalability, and debuggability, adhering to the principles of Authorization Independence and Structural Segregation.  Each document is secured based on `request.auth.uid`, eliminating the need for `get()` calls in security rules, thus enabling atomic operations.\n\n*   **User Data:**  User profiles are stored under `/users/{userId}`. This path-based ownership ensures that only the authenticated user can access their profile. The `userId` is the Firebase Authentication UID.\n*   **Study Sessions:** Study sessions are stored under `/users/{userId}/study_sessions/{studySessionId}`. This structure leverages path-based ownership. Each study session is owned by a specific user, ensuring data privacy. The structure enables secure list operations (QAPs) as rules can easily filter sessions by user ID. Additionally, the `userId` is denormalized into each StudySession document. This enables security rules to validate that the `request.auth.uid` matches the `userId` within the document, achieving Authorization Independence.\n*   **Log Entries:** Log entries for each study session are stored under `/users/{userId}/study_sessions/{studySessionId}/log_entries/{logEntryId}`. This continues the hierarchical path-based ownership, ensuring that only the owner of the study session can access the associated logs. Similarly, `userId` and `studySessionId` are denormalized into each LogEntry to enforce authorization independence.\n\nThis structure facilitates simple and robust security rules. For example, a rule for creating a new study session would verify that `request.auth.uid == request.resource.data.userId`.  Listing study sessions is also secure, as rules can verify that `request.auth.uid == userId` within the path.\n\nThe chosen structure ensures clarity, predictability, and ease of debugging. The explicit path-based ownership and the denormalized `userId` attribute significantly simplifies the security rules."
+      "description": "Stores study session data for a user. Includes denormalized 'userId' for authorization independence."
+    }
   }
 }

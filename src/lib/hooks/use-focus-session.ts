@@ -1,10 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { FaceLandmarker, FilesetResolver } from '@mediapipe/tasks-vision';
-import { db } from '@/lib/firebase';
 import {
   collection,
-  addDoc,
-  updateDoc,
   doc,
   serverTimestamp,
   Timestamp,
@@ -13,6 +10,9 @@ import { useToast } from '@/hooks/use-toast';
 import { analyzeScreenActivity } from '@/ai/flows/analyze-screen-activity';
 import { summarizeStudySession } from '@/ai/flows/summarize-study-session';
 import type { SessionStatus, FocusState, LogEntry, StudySession, ActivityCategory } from '@/types';
+import { useFirebase } from '@/firebase';
+import { initiateAnonymousSignIn } from '@/firebase/non-blocking-login';
+import { addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 const AWAY_THRESHOLD = 3; // seconds
 const AUDIT_INTERVAL = 120 * 1000; // 2 minutes in milliseconds
@@ -37,6 +37,7 @@ export function useFocusSession({
   const [sessionSummary, setSessionSummary] = useState<string | null>(null);
 
   const { toast } = useToast();
+  const { firestore, user, isUserLoading, auth } = useFirebase();
 
   const faceLandmarkerRef = useRef<FaceLandmarker | null>(null);
   const webcamStreamRef = useRef<MediaStream | null>(null);
@@ -76,23 +77,19 @@ export function useFocusSession({
   }, []);
 
   const updateFirestore = useCallback(async (newLogs: LogEntry[], force = false) => {
-    if (!sessionId) return;
+    if (!sessionId || !user || !firestore) return;
     const now = Date.now();
     if (!force && now - lastFirestoreUpdateRef.current < FIRESTORE_UPDATE_INTERVAL) {
       return;
     }
 
-    try {
-      const sessionRef = doc(db, 'study_sessions', sessionId);
-      await updateDoc(sessionRef, {
-        totalFocusTime: time,
-        logs: logs.concat(newLogs),
-      });
-      lastFirestoreUpdateRef.current = now;
-    } catch (error) {
-      console.error('Failed to update session in Firestore:', error);
-    }
-  }, [sessionId, time, logs]);
+    const sessionRef = doc(firestore, 'users', user.uid, 'study_sessions', sessionId);
+    updateDocumentNonBlocking(sessionRef, {
+      totalFocusTime: time,
+      logs: logs.concat(newLogs),
+    });
+    lastFirestoreUpdateRef.current = now;
+  }, [sessionId, time, logs, user, firestore]);
 
   const runScreenAudit = useCallback(async () => {
     if (!screenVideoRef.current || screenVideoRef.current.readyState < 2) return;
@@ -188,6 +185,17 @@ export function useFocusSession({
       toast({ title: 'Privacy Shield is on', description: 'Please disable it to start a session.' });
       return;
     }
+
+    if (isUserLoading || !auth) {
+      toast({ title: 'Authenticating...', description: 'Please wait a moment.' });
+      return;
+    }
+    if (!user) {
+      initiateAnonymousSignIn(auth);
+      toast({ title: 'Creating anonymous user...', description: 'Please click start session again in a moment.' });
+      setStatus('idle');
+      return;
+    }
     
     setStatus('initializing');
     setSessionSummary(null);
@@ -207,7 +215,7 @@ export function useFocusSession({
       if (screenVideoRef.current) screenVideoRef.current.srcObject = screenStream;
       
       const newSession: Omit<StudySession, 'id'> = {
-        userId: 'anonymous', // Replace with actual user ID later
+        userId: user.uid,
         startTime: Timestamp.now(),
         endTime: null,
         totalFocusTime: 0,
@@ -215,7 +223,11 @@ export function useFocusSession({
         logs: [],
       };
       
-      const docRef = await addDoc(collection(db, 'study_sessions'), newSession);
+      if (!firestore) throw new Error("Firestore not available");
+
+      const sessionCollection = collection(firestore, 'users', user.uid, 'study_sessions');
+      const docRef = await addDocumentNonBlocking(sessionCollection, newSession);
+      
       setSessionId(docRef.id);
       setTime(0);
       setLogs([]);
@@ -235,20 +247,24 @@ export function useFocusSession({
       cleanup();
       setStatus('idle');
     }
-  }, [enabled, toast, cleanup, mainLoop, runScreenAudit, initializeMediaPipe, webcamVideoRef, screenVideoRef]);
+  }, [enabled, toast, cleanup, mainLoop, runScreenAudit, initializeMediaPipe, webcamVideoRef, screenVideoRef, firestore, user, isUserLoading, auth]);
 
   const endSession = useCallback(async () => {
-    if (!sessionId) return;
+    if (!sessionId || !user || !firestore) return;
     
     cleanup();
     
     const finalLogs = logs.map(l => ({...l, timestamp: new Date(l.timestamp).getTime()}));
 
-    const summaryResult = await summarizeStudySession({ logs: finalLogs });
-    setSessionSummary(summaryResult.summary);
+    try {
+      const summaryResult = await summarizeStudySession({ logs: finalLogs });
+      setSessionSummary(summaryResult.summary);
+    } catch(e) {
+      console.error("Error summarizing session", e);
+    }
     
-    const sessionRef = doc(db, 'study_sessions', sessionId);
-    await updateDoc(sessionRef, {
+    const sessionRef = doc(firestore, 'users', user.uid, 'study_sessions', sessionId);
+    updateDocumentNonBlocking(sessionRef, {
       endTime: serverTimestamp(),
       status: 'completed',
       totalFocusTime: time,
@@ -256,7 +272,7 @@ export function useFocusSession({
     });
     
     setStatus('stopped');
-  }, [sessionId, cleanup, time, logs]);
+  }, [sessionId, cleanup, time, logs, firestore, user]);
   
   useEffect(() => {
     return () => {
