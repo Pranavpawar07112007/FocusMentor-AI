@@ -64,6 +64,11 @@ export function useFocusSession({
     webcamStreamRef.current = null;
     screenStreamRef.current = null;
     auditIntervalRef.current = null;
+
+    if (faceLandmarkerRef.current) {
+      faceLandmarkerRef.current.close();
+      faceLandmarkerRef.current = null;
+    }
   }, [webcamVideoRef, screenVideoRef]);
 
   const addLog = useCallback((category: ActivityCategory, reasoning: string, duration: number) => {
@@ -210,7 +215,7 @@ export function useFocusSession({
       const landmarker = await FaceLandmarker.createFromOptions(vision, {
         baseOptions: {
           modelAssetPath: `https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task`,
-          delegate: "GPU",
+          delegate: "CPU",
         },
         outputFaceBlendshapes: false,
         outputFacialTransformationMatrixes: false,
