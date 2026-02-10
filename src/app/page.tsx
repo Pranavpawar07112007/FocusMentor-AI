@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useCallback } from 'react';
-import { Shield, Loader, Play, Square } from 'lucide-react';
+import { Shield, Loader, Play, Square, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
@@ -10,11 +10,25 @@ import FocusRing from '@/components/app/focus-ring';
 import StatsDashboard from '@/components/app/stats-dashboard';
 import { useFocusSession } from '@/lib/hooks/use-focus-session';
 import { SessionHistory } from '@/components/app/session-history';
+import { useFirebase } from '@/firebase';
+import { initiateGoogleSignIn, initiateSignOut } from '@/firebase/non-blocking-login';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { useToast } from '@/hooks/use-toast';
+
 
 export default function Home() {
   const [privacyShield, setPrivacyShield] = useState(false);
   const webcamVideoRef = useRef<HTMLVideoElement>(null);
   const screenVideoRef = useRef<HTMLVideoElement>(null);
+  const { toast } = useToast();
 
   const {
     status,
@@ -30,13 +44,35 @@ export default function Home() {
     screenVideoRef,
   });
 
+  const { user, auth, isUserLoading } = useFirebase();
+
   const handleStartSession = useCallback(async () => {
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in with Google to start a session.",
+        variant: "destructive",
+      });
+      return;
+    }
     await startSession();
-  }, [startSession]);
+  }, [startSession, user, toast]);
 
   const handleEndSession = useCallback(() => {
     endSession();
   }, [endSession]);
+
+  const handleGoogleSignIn = () => {
+    if (auth) {
+      initiateGoogleSignIn(auth);
+    }
+  };
+
+  const handleSignOut = () => {
+    if (auth) {
+      initiateSignOut(auth);
+    }
+  };
   
   const glassmorphismStyle = "bg-card/30 backdrop-blur-lg border border-border/50 shadow-lg";
 
@@ -55,6 +91,35 @@ export default function Home() {
               aria-label="Privacy Shield"
             />
           </div>
+
+          {isUserLoading ? (
+            <Loader className="animate-spin" />
+          ) : user ? (
+             <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={user.photoURL ?? ''} alt={user.displayName ?? 'U'} />
+                    <AvatarFallback>{user.email ? user.email[0].toUpperCase() : 'U'}</AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>
+                  <p>Signed in as</p>
+                  <p className="font-normal text-sm text-muted-foreground">{user.email}</p>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleSignOut}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Sign Out</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <Button onClick={handleGoogleSignIn}>Sign in with Google</Button>
+          )}
+
           {status !== 'idle' && status !== 'stopped' && (
             <Button variant="destructive" size="sm" onClick={handleEndSession}>
               <Square className="mr-2 h-4 w-4" /> End Session

@@ -11,7 +11,6 @@ import { analyzeScreenActivity } from '@/ai/flows/analyze-screen-activity';
 import { summarizeStudySession } from '@/ai/flows/summarize-study-session';
 import type { SessionStatus, FocusState, LogEntry, StudySession, ActivityCategory } from '@/types';
 import { useFirebase } from '@/firebase';
-import { initiateAnonymousSignIn } from '@/firebase/non-blocking-login';
 import { addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 const AWAY_THRESHOLD = 3; // seconds
@@ -149,8 +148,6 @@ export function useFocusSession({
       }
     } catch (e) {
       console.error("Error during face detection:", e);
-      // We can add a toast here if this becomes a recurring problem, but for now, just logging it
-      // to avoid spamming the user.
     }
   }, [status, addLog, webcamVideoRef]);
 
@@ -192,14 +189,12 @@ export function useFocusSession({
       return;
     }
 
-    if (isUserLoading || !auth) {
-      toast({ title: 'Authenticating...', description: 'Please wait a moment.' });
-      return;
-    }
-    if (!user) {
-      initiateAnonymousSignIn(auth);
-      toast({ title: 'Creating anonymous user...', description: 'Please click start session again in a moment.' });
-      setStatus('idle');
+    if (isUserLoading || !auth || !user) {
+      toast({
+        variant: 'destructive',
+        title: 'Authentication Required',
+        description: 'You must be signed in to start a session.',
+      });
       return;
     }
     
