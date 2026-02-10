@@ -36,7 +36,7 @@ export function useFocusSession({
   const [sessionSummary, setSessionSummary] = useState<string | null>(null);
 
   const { toast } = useToast();
-  const { firestore, user, isUserLoading, auth } = useFirebase();
+  const { firestore, user } = useFirebase();
 
   const faceLandmarkerRef = useRef<FaceLandmarker | null>(null);
   const webcamStreamRef = useRef<MediaStream | null>(null);
@@ -185,11 +185,11 @@ export function useFocusSession({
   
   const startSession = useCallback(async () => {
     if (!enabled) {
-      toast({ title: 'Privacy Shield is on', description: 'Please disable it to start a session.' });
+      toast({ title: 'Privacy Shield is on or you are not logged in.', description: 'Please disable it and log in to start a session.' });
       return;
     }
 
-    if (isUserLoading || !auth || !user) {
+    if (!user) {
       toast({
         variant: 'destructive',
         title: 'Authentication Required',
@@ -248,17 +248,15 @@ export function useFocusSession({
       cleanup();
       setStatus('idle');
     }
-  }, [enabled, toast, cleanup, mainLoop, runScreenAudit, initializeMediaPipe, webcamVideoRef, screenVideoRef, firestore, user, isUserLoading, auth]);
+  }, [enabled, toast, cleanup, mainLoop, runScreenAudit, initializeMediaPipe, webcamVideoRef, screenVideoRef, firestore, user]);
 
   const endSession = useCallback(async () => {
     if (!sessionId || !user || !firestore) return;
     
     cleanup();
     
-    const finalLogs = logs.map(l => ({...l, timestamp: new Date(l.timestamp).getTime()}));
-
     try {
-      const summaryResult = await summarizeStudySession({ logs: finalLogs });
+      const summaryResult = await summarizeStudySession({ logs: logs });
       setSessionSummary(summaryResult.summary);
     } catch(e) {
       console.error("Error summarizing session", e);
@@ -269,7 +267,7 @@ export function useFocusSession({
       endTime: serverTimestamp(),
       status: 'completed',
       totalFocusTime: time,
-      logs: finalLogs,
+      logs: logs,
     });
     
     setStatus('stopped');
