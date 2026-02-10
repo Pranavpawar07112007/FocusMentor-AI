@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Shield, Loader, Play, Square, LogOut, History, Goal as GoalIcon, Settings } from 'lucide-react';
+import { Shield, Loader, Play, Square, Goal as GoalIcon, Settings, History, LayoutDashboard, Award } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
@@ -37,6 +37,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
 import { Progress } from '@/components/ui/progress';
+import { LogOut } from 'lucide-react';
 
 export default function Home() {
   const [privacyShield, setPrivacyShield] = useState(false);
@@ -137,6 +138,18 @@ export default function Home() {
             <Link href="/history">
               <History className="h-4 w-4" />
               <span className="ml-2 hidden sm:inline">History</span>
+            </Link>
+          </Button>
+          <Button variant="ghost" asChild>
+            <Link href="/dashboard">
+              <LayoutDashboard className="h-4 w-4" />
+              <span className="ml-2 hidden sm:inline">Dashboard</span>
+            </Link>
+          </Button>
+          <Button variant="ghost" asChild>
+            <Link href="/gamification">
+              <Award className="h-4 w-4" />
+              <span className="ml-2 hidden sm:inline">Achievements</span>
             </Link>
           </Button>
 

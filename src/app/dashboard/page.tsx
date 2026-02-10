@@ -1,24 +1,28 @@
 'use client';
 
-import { useParams, useRouter } from 'next/navigation';
-import { useFirebase, useDoc, useMemoFirebase, WithId } from '@/firebase';
-import { doc } from 'firebase/firestore';
-import { StudySession } from '@/types';
-import { Loader, ArrowLeft, Settings, LogOut } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { SessionReport } from '@/components/app/session-report';
 import Link from 'next/link';
+import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/app/theme-toggle';
+import { HistoricalTrendsChart } from '@/components/app/historical-trends-chart';
+import { ProductivityByHourChart } from '@/components/app/productivity-by-hour-chart';
+import { useFirebase } from '@/firebase';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+import { Loader, Settings, LogOut } from 'lucide-react';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { initiateSignOut } from '@/firebase/non-blocking-login';
 
-export default function SessionReportPage() {
-  const params = useParams();
-  const sessionId = params.sessionId as string;
-  const { user, auth, firestore, isUserLoading } = useFirebase();
+export default function DashboardPage() {
+  const { user, auth, isUserLoading } = useFirebase();
   const router = useRouter();
 
+  useEffect(() => {
+    if (!isUserLoading && !user) {
+      router.replace('/login');
+    }
+  }, [user, isUserLoading, router]);
+  
   const handleSignOut = () => {
     if (auth) {
       initiateSignOut(auth);
@@ -26,38 +30,15 @@ export default function SessionReportPage() {
     }
   };
 
-  const sessionRef = useMemoFirebase(() => {
-    if (!user || !firestore || !sessionId) return null;
-    return doc(firestore, 'users', user.uid, 'study_sessions', sessionId);
-  }, [user, firestore, sessionId]);
-
-  const { data: session, isLoading } = useDoc<StudySession>(sessionRef);
-
-  if (isLoading || isUserLoading || !user) {
+  if (isUserLoading || !user) {
     return (
       <div className="flex h-screen items-center justify-center">
         <Loader className="h-8 w-8 animate-spin" />
       </div>
     );
   }
-
-  if (!session) {
-    return (
-      <div className="flex h-screen flex-col items-center justify-center text-center">
-        <h2 className="text-2xl font-bold">Session Not Found</h2>
-        <p className="max-w-sm text-muted-foreground">
-          The session you are looking for does not exist or you may not have
-          permission to view it.
-        </p>
-        <Button asChild variant="outline" className="mt-4">
-          <Link href="/history">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to History
-          </Link>
-        </Button>
-      </div>
-    );
-  }
+  
+  const glassmorphismStyle = 'bg-card/30 backdrop-blur-lg border border-border/50 shadow-lg';
 
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
@@ -72,7 +53,7 @@ export default function SessionReportPage() {
           <Button asChild variant="ghost">
             <Link href="/history">History</Link>
           </Button>
-          <Button asChild variant="ghost">
+          <Button asChild variant="ghost" className="bg-accent">
             <Link href="/dashboard">Dashboard</Link>
           </Button>
           <Button asChild variant="ghost">
@@ -116,8 +97,18 @@ export default function SessionReportPage() {
           </DropdownMenu>
         </div>
       </header>
-      <main className="container mx-auto max-w-5xl flex-grow px-4 pt-24 sm:px-6 lg:px-8">
-        <SessionReport session={session as WithId<StudySession>} />
+      <main className="container mx-auto max-w-7xl flex-grow px-4 pt-24 sm:px-6 lg:px-8">
+        <div className={`mb-8 rounded-lg p-6 ${glassmorphismStyle}`}>
+          <h2 className="text-3xl font-bold tracking-tight">AI Dashboard</h2>
+          <p className="text-muted-foreground">
+            Analyze your productivity trends and get smart scheduling suggestions.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+          <HistoricalTrendsChart />
+          <ProductivityByHourChart />
+        </div>
       </main>
     </div>
   );

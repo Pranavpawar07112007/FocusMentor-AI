@@ -1,7 +1,7 @@
 'use client';
 
 import { useFirebase, useCollection, useMemoFirebase, addDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
-import { Loader, Trash2, PlusCircle, Settings as SettingsIcon } from 'lucide-react';
+import { Loader, Trash2, PlusCircle, Settings as SettingsIcon, LogOut, Settings } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, useMemo } from 'react';
@@ -13,9 +13,12 @@ import { CustomCategory } from '@/types';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuItem } from '@/components/ui/dropdown-menu';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { initiateSignOut } from '@/firebase/non-blocking-login';
 
 export default function SettingsPage() {
-  const { user, firestore, isUserLoading } = useFirebase();
+  const { user, auth, firestore, isUserLoading } = useFirebase();
   const router = useRouter();
   const { toast } = useToast();
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -25,6 +28,13 @@ export default function SettingsPage() {
       router.replace('/login');
     }
   }, [user, isUserLoading, router]);
+
+  const handleSignOut = () => {
+    if (auth) {
+      initiateSignOut(auth);
+      router.push('/login');
+    }
+  };
 
   const customCategoriesQuery = useMemoFirebase(() => {
     if (!user || !firestore) return null;
@@ -74,10 +84,54 @@ export default function SettingsPage() {
           <Link href="/">FocusMentor AI</Link>
         </h1>
         <div className="flex items-center gap-4">
-          <Button asChild variant="outline">
-            <Link href="/">Back to Focus</Link>
+          <Button asChild variant="ghost">
+            <Link href="/">Focus</Link>
+          </Button>
+          <Button asChild variant="ghost">
+            <Link href="/history">History</Link>
+          </Button>
+          <Button asChild variant="ghost">
+            <Link href="/dashboard">Dashboard</Link>
+          </Button>
+          <Button asChild variant="ghost">
+            <Link href="/gamification">Achievements</Link>
           </Button>
           <ThemeToggle />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                <Avatar className="h-8 w-8">
+                  <AvatarImage
+                    src={user.photoURL ?? ''}
+                    alt={user.displayName ?? 'U'}
+                  />
+                  <AvatarFallback>
+                    {user.email ? user.email[0].toUpperCase() : 'U'}
+                  </AvatarFallback>
+                </Avatar>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>
+                <p>Signed in as</p>
+                <p className="text-sm font-normal text-muted-foreground">
+                  {user.email}
+                </p>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link href="/settings">
+                  <Settings className="mr-2 h-4 w-4" />
+                  <span>Settings</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleSignOut}>
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Sign Out</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </header>
       <main className="container mx-auto max-w-2xl flex-grow px-4 pt-24 sm:px-6 lg:px-8">
