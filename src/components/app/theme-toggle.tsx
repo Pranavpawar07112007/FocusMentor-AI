@@ -2,36 +2,22 @@
 
 import * as React from 'react';
 import { Moon, Sun } from 'lucide-react';
-
 import { Button } from '@/components/ui/button';
+import { useTheme } from '@/components/app/theme-provider';
 
 export function ThemeToggle() {
-  const [theme, setTheme] = React.useState('light');
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = React.useState(false);
 
-  React.useEffect(() => {
-    const storedTheme = localStorage.getItem('theme');
-    if (storedTheme) {
-      setTheme(storedTheme);
-    } else {
-      const systemTheme = window.matchMedia('(prefers-color-scheme: dark)')
-        .matches
-        ? 'dark'
-        : 'light';
-      setTheme(systemTheme);
-    }
-  }, []);
+  React.useEffect(() => setMounted(true), []);
 
-  React.useEffect(() => {
-    if (theme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-    localStorage.setItem('theme', theme);
-  }, [theme]);
+  if (!mounted) {
+    // Render a placeholder on the server and during initial client render
+    return <Button variant="ghost" size="icon" disabled />;
+  }
 
   const toggleTheme = () => {
-    setTheme((prevTheme) => (prevTheme === 'dark' ? 'light' : 'dark'));
+    setTheme(theme === 'dark' ? 'light' : 'dark');
   };
 
   return (
