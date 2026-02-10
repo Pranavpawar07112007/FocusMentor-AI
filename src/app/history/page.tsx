@@ -36,9 +36,12 @@ export default function HistoryPage() {
     );
   }
 
+  const glassmorphismStyle =
+    'bg-card/30 backdrop-blur-lg border border-border/50 shadow-lg';
+
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
-      <header className="sticky top-0 z-40 w-full border-b border-border/20 bg-background/80 backdrop-blur-lg">
+      <header className="fixed top-4 left-4 right-4 z-40 rounded-lg border border-border/20 bg-background/80 backdrop-blur-lg">
         <div className="container flex h-16 items-center justify-between">
           <h1 className="text-xl font-bold text-primary font-headline">
             <Link href="/">FocusMentor AI</Link>
@@ -51,36 +54,40 @@ export default function HistoryPage() {
           </div>
         </div>
       </header>
-      <main className="container mx-auto max-w-4xl flex-grow p-4 sm:p-6 lg:p-8">
-        <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h2 className="text-3xl font-bold tracking-tight">Session History</h2>
-            <p className="text-muted-foreground">
-              Review your past focus sessions.
-            </p>
+      <main className="container mx-auto max-w-4xl flex-grow p-4 pt-28 sm:p-6 lg:p-8 lg:pt-32">
+        <div
+          className={`mb-8 rounded-lg p-6 ${glassmorphismStyle}`}
+        >
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <h2 className="text-3xl font-bold tracking-tight">Session History</h2>
+              <p className="text-muted-foreground">
+                Review your past focus sessions.
+              </p>
+            </div>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant={'outline'}
+                  className={cn(
+                    'w-[280px] justify-start text-left font-normal',
+                    !date && 'text-muted-foreground'
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {date ? format(date, 'PPP') : <span>Pick a date to filter</span>}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0">
+                <Calendar
+                  mode="single"
+                  selected={date}
+                  onSelect={setDate}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
           </div>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant={'outline'}
-                className={cn(
-                  'w-[280px] justify-start text-left font-normal',
-                  !date && 'text-muted-foreground'
-                )}
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {date ? format(date, 'PPP') : <span>Pick a date to filter</span>}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0">
-              <Calendar
-                mode="single"
-                selected={date}
-                onSelect={setDate}
-                initialFocus
-              />
-            </PopoverContent>
-          </Popover>
         </div>
         <SessionHistory selectedDate={date} />
       </main>
