@@ -129,22 +129,28 @@ export function useFocusSession({
     if (video.currentTime === lastVideoTimeRef.current) return;
     lastVideoTimeRef.current = video.currentTime;
 
-    const results = faceLandmarkerRef.current.detectForVideo(video, Date.now());
+    try {
+      const results = faceLandmarkerRef.current.detectForVideo(video, Date.now());
 
-    if (results && results.faceLandmarks.length > 0) {
-      awayCounterRef.current = 0;
-      if (status === 'paused') {
-        setStatus('running');
-        setFocusState('focus');
-        addLog('Away', 'User returned to screen', 0); // Duration to be calculated
+      if (results && results.faceLandmarks && results.faceLandmarks.length > 0) {
+        awayCounterRef.current = 0;
+        if (status === 'paused') {
+          setStatus('running');
+          setFocusState('focus');
+          addLog('Away', 'User returned to screen', 0); // Duration to be calculated
+        }
+      } else {
+        awayCounterRef.current++;
+        if (awayCounterRef.current >= AWAY_THRESHOLD && status === 'running') {
+          setStatus('paused');
+          setFocusState('away');
+          addLog('Away', 'User left the screen', awayCounterRef.current);
+        }
       }
-    } else {
-      awayCounterRef.current++;
-      if (awayCounterRef.current >= AWAY_THRESHOLD && status === 'running') {
-        setStatus('paused');
-        setFocusState('away');
-        addLog('Away', 'User left the screen', awayCounterRef.current);
-      }
+    } catch (e) {
+      console.error("Error during face detection:", e);
+      // We can add a toast here if this becomes a recurring problem, but for now, just logging it
+      // to avoid spamming the user.
     }
   }, [status, addLog, webcamVideoRef]);
 
