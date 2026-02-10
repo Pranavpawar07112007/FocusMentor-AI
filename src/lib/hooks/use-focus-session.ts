@@ -128,7 +128,7 @@ export function useFocusSession({
     }
 
     // readyState 4 means we have enough data to play the media at the current playback position.
-    if (video.readyState !== 4) {
+    if (video.readyState !== 4 || video.videoWidth === 0) {
       return;
     }
 
@@ -171,7 +171,7 @@ export function useFocusSession({
       const landmarker = await FaceLandmarker.createFromOptions(vision, {
         baseOptions: {
           modelAssetPath: `https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task`,
-          delegate: "CPU",
+          delegate: "GPU",
         },
         outputFaceBlendshapes: false,
         outputFacialTransformationMatrixes: false,
