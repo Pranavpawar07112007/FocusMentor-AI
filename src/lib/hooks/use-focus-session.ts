@@ -42,14 +42,18 @@ export function useFocusSession({
   const webcamStreamRef = useRef<MediaStream | null>(null);
   const screenStreamRef = useRef<MediaStream | null>(null);
   const lastVideoTimeRef = useRef(-1);
-  const awayCounterRef = useRef(0);
+  const animationFrameIdRef = useRef<number | null>(null);
+  const awayStartTimeRef = useRef<number | null>(null);
+  const lastFaceSeenTimeRef = useRef<number>(0);
   const lastFirestoreUpdateRef = useRef(0);
-  const mainIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const auditIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const cleanup = useCallback(() => {
-    if (mainIntervalRef.current) clearInterval(mainIntervalRef.current);
     if (auditIntervalRef.current) clearInterval(auditIntervalRef.current);
+    if (animationFrameIdRef.current) {
+      cancelAnimationFrame(animationFrameIdRef.current);
+      animationFrameIdRef.current = null;
+    }
     
     webcamStreamRef.current?.getTracks().forEach((track) => track.stop());
     screenStreamRef.current?.getTracks().forEach((track) => track.stop());
@@ -59,7 +63,6 @@ export function useFocusSession({
 
     webcamStreamRef.current = null;
     screenStreamRef.current = null;
-    mainIntervalRef.current = null;
     auditIntervalRef.current = null;
   }, [webcamVideoRef, screenVideoRef]);
 
@@ -107,7 +110,10 @@ export function useFocusSession({
       if (result.category === 'Distraction') {
         setFocusState('distraction');
       } else {
-        setFocusState('focus');
+        // If not distracted, and user is present, state is focus
+        if (status === 'running') {
+          setFocusState('focus');
+        }
       }
       const newLog = addLog(result.category, result.reasoning, AUDIT_INTERVAL / 1000);
       updateFirestore([newLog]);
@@ -119,51 +125,84 @@ export function useFocusSession({
         description: 'Could not analyze screen activity.',
       });
     }
-  }, [screenVideoRef, addLog, updateFirestore, toast]);
-  
-  const detectFace = useCallback(() => {
+  }, [screenVideoRef, addLog, updateFirestore, toast, status]);
+
+  const predictWebcam = useCallback(() => {
     const video = webcamVideoRef.current;
-    if (!video || !faceLandmarkerRef.current) {
-      return;
-    }
 
-    // readyState 4 means we have enough data to play the media at the current playback position.
-    if (video.readyState !== 4 || video.videoWidth === 0) {
-      return;
+    if (!faceLandmarkerRef.current) {
+        return;
     }
-
-    if (video.currentTime === lastVideoTimeRef.current) return;
-    lastVideoTimeRef.current = video.currentTime;
+    if (!video || video.readyState !== 4 || video.videoWidth === 0) {
+        return;
+    }
+    
+    const timestamp = video.currentTime * 1000;
+    if (timestamp === lastVideoTimeRef.current) {
+        return;
+    }
+    lastVideoTimeRef.current = timestamp;
 
     try {
-      const results = faceLandmarkerRef.current.detectForVideo(video, Date.now());
+        const results = faceLandmarkerRef.current.detectForVideo(video, timestamp);
 
-      if (results && results.faceLandmarks && results.faceLandmarks.length > 0) {
-        awayCounterRef.current = 0;
-        if (status === 'paused') {
-          setStatus('running');
-          setFocusState('focus');
-          addLog('Away', 'User returned to screen', 0); // Duration to be calculated
+        if (results && results.faceLandmarks && results.faceLandmarks.length > 0) {
+            lastFaceSeenTimeRef.current = Date.now();
+            if (status === 'paused' && awayStartTimeRef.current) {
+                const awayDuration = Math.round((Date.now() - awayStartTimeRef.current) / 1000);
+                addLog('Away', `User returned after ${awayDuration}s`, awayDuration);
+                awayStartTimeRef.current = null;
+                setStatus('running');
+                setFocusState('focus');
+            }
+        } else {
+            if (status === 'running' && !awayStartTimeRef.current) {
+                if (Date.now() - lastFaceSeenTimeRef.current > AWAY_THRESHOLD * 1000) {
+                    setStatus('paused');
+                    setFocusState('away');
+                    awayStartTimeRef.current = Date.now();
+                }
+            }
         }
-      } else {
-        awayCounterRef.current++;
-        if (awayCounterRef.current >= AWAY_THRESHOLD && status === 'running') {
-          setStatus('paused');
-          setFocusState('away');
-          addLog('Away', 'User left the screen', awayCounterRef.current);
-        }
-      }
     } catch (e) {
-      console.error("Error during face detection:", e);
+        console.error("Error during face detection:", e);
     }
-  }, [status, addLog, webcamVideoRef]);
+  }, [status, webcamVideoRef, addLog]);
 
-  const mainLoop = useCallback(() => {
-    if(status === 'running') {
-      setTime(prev => prev + 1);
+  useEffect(() => {
+    let timerId: NodeJS.Timeout;
+    if (status === 'running') {
+      timerId = setInterval(() => {
+        setTime(prevTime => prevTime + 1);
+      }, 1000);
     }
-    detectFace();
-  }, [status, detectFace]);
+    return () => {
+      if (timerId) clearInterval(timerId);
+    };
+  }, [status]);
+  
+  useEffect(() => {
+    const loop = () => {
+      predictWebcam();
+      animationFrameIdRef.current = requestAnimationFrame(loop);
+    };
+
+    if (status === 'running' || status === 'paused') {
+      animationFrameIdRef.current = requestAnimationFrame(loop);
+    } else {
+      if (animationFrameIdRef.current) {
+        cancelAnimationFrame(animationFrameIdRef.current);
+        animationFrameIdRef.current = null;
+      }
+    }
+
+    return () => {
+      if (animationFrameIdRef.current) {
+        cancelAnimationFrame(animationFrameIdRef.current);
+        animationFrameIdRef.current = null;
+      }
+    };
+  }, [status, predictWebcam]);
   
   const initializeMediaPipe = useCallback(async () => {
     try {
@@ -239,10 +278,13 @@ export function useFocusSession({
       setSessionId(docRef.id);
       setTime(0);
       setLogs([]);
+      
+      lastFaceSeenTimeRef.current = Date.now();
+      awayStartTimeRef.current = null;
+      
       setStatus('running');
       setFocusState('focus');
 
-      mainIntervalRef.current = setInterval(mainLoop, 1000);
       auditIntervalRef.current = setInterval(runScreenAudit, AUDIT_INTERVAL);
 
     } catch (err) {
@@ -255,15 +297,27 @@ export function useFocusSession({
       cleanup();
       setStatus('idle');
     }
-  }, [enabled, toast, cleanup, mainLoop, runScreenAudit, initializeMediaPipe, webcamVideoRef, screenVideoRef, firestore, user]);
+  }, [enabled, toast, cleanup, runScreenAudit, initializeMediaPipe, webcamVideoRef, screenVideoRef, firestore, user]);
 
   const endSession = useCallback(async () => {
     if (!sessionId || !user || !firestore) return;
+
+    const finalLogs = [...logs];
+    if (awayStartTimeRef.current !== null) {
+      const awayDuration = Math.round((Date.now() - awayStartTimeRef.current) / 1000);
+      finalLogs.push({
+        id: `${Date.now()}`,
+        timestamp: Date.now(),
+        category: 'Away',
+        reasoning: `Session ended while user was away for ${awayDuration}s`,
+        duration: awayDuration,
+      });
+    }
     
     cleanup();
     
     try {
-      const summaryResult = await summarizeStudySession({ logs: logs });
+      const summaryResult = await summarizeStudySession({ logs: finalLogs });
       setSessionSummary(summaryResult.summary);
     } catch(e) {
       console.error("Error summarizing session", e);
@@ -274,7 +328,7 @@ export function useFocusSession({
       endTime: serverTimestamp(),
       status: 'completed',
       totalFocusTime: time,
-      logs: logs,
+      logs: finalLogs,
     });
     
     setStatus('stopped');
