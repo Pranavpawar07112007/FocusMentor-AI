@@ -1,7 +1,7 @@
 'use client';
 
-import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, orderBy } from 'firebase/firestore';
+import { useFirebase, useCollection, useMemoFirebase, WithId } from '@/firebase';
+import { collection, query, orderBy, where, doc } from 'firebase/firestore';
 import { StudySession, LogEntry } from '@/types';
 import {
   Card,
@@ -11,10 +11,23 @@ import {
   CardDescription,
 } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { format, formatDistanceToNow } from 'date-fns';
-import { Loader, Code, Sigma, Library, Coffee, UserMinus } from 'lucide-react';
+import { format, formatDistanceToNow, startOfDay, endOfDay } from 'date-fns';
+import { Loader, Code, Sigma, Library, Coffee, UserMinus, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import React from 'react';
+import React, { useState } from 'react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
+import { deleteDocumentNonBlocking } from '@/firebase';
 
 const categoryIcons: Record<LogEntry['category'], React.ReactNode> = {
   'Coding': <Code className="h-4 w-4 text-blue-400" />,
@@ -24,18 +37,49 @@ const categoryIcons: Record<LogEntry['category'], React.ReactNode> = {
   'Away': <UserMinus className="h-4 w-4 text-amber-400" />,
 };
 
-export function SessionHistory() {
+interface SessionHistoryProps {
+  selectedDate?: Date;
+}
+
+export function SessionHistory({ selectedDate }: SessionHistoryProps) {
   const { user, firestore, isUserLoading } = useFirebase();
+  const { toast } = useToast();
+  const [sessionToDelete, setSessionToDelete] = useState<WithId<StudySession> | null>(null);
 
   const sessionsQuery = useMemoFirebase(() => {
     if (!user || !firestore) return null;
-    return query(
-      collection(firestore, 'users', user.uid, 'study_sessions'),
-      orderBy('startTime', 'desc')
-    );
-  }, [user, firestore]);
+    
+    const baseQuery = collection(firestore, 'users', user.uid, 'study_sessions');
+
+    if (selectedDate) {
+      const start = startOfDay(selectedDate);
+      const end = endOfDay(selectedDate);
+      return query(
+        baseQuery,
+        where('startTime', '>=', start),
+        where('startTime', '<=', end),
+        orderBy('startTime', 'desc')
+      );
+    }
+    
+    return query(baseQuery, orderBy('startTime', 'desc'));
+
+  }, [user, firestore, selectedDate]);
 
   const { data: sessions, isLoading } = useCollection<StudySession>(sessionsQuery);
+
+  const handleDeleteSession = () => {
+    if (!sessionToDelete || !user || !firestore) return;
+
+    const sessionRef = doc(firestore, 'users', user.uid, 'study_sessions', sessionToDelete.id);
+    deleteDocumentNonBlocking(sessionRef);
+    
+    toast({
+      title: 'Session Deleted',
+      description: 'The study session has been successfully deleted.',
+    });
+    setSessionToDelete(null);
+  };
 
   const formatDuration = (seconds: number) => {
     if (isNaN(seconds) || seconds < 0) return '0m';
@@ -59,11 +103,13 @@ export function SessionHistory() {
     return (
       <Card className="bg-card/30 backdrop-blur-lg border border-border/50 shadow-lg">
         <CardHeader>
-          <CardTitle>No Sessions Yet</CardTitle>
+          <CardTitle>No Sessions Found</CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">
-            Your past study sessions will appear here once you complete them.
+            {selectedDate
+              ? 'No sessions found for the selected date.'
+              : 'Your past study sessions will appear here once you complete them.'}
           </p>
         </CardContent>
       </Card>
@@ -71,64 +117,93 @@ export function SessionHistory() {
   }
 
   return (
-    <div className="space-y-6">
-      {sessions?.map((session) => (
-        <Card key={session.id} className="overflow-hidden bg-card/30 backdrop-blur-lg border border-border/50 shadow-lg">
-          <CardHeader>
-            <div className="flex items-start justify-between">
-              <div>
-                <CardTitle>
-                  {session.startTime
-                    ? format(session.startTime.toDate(), 'MMMM d, yyyy - p')
-                    : 'Session'}
-                </CardTitle>
-                <CardDescription>
-                  Total Duration: {formatDuration(session.totalFocusTime)}
-                </CardDescription>
-              </div>
-              <Badge
-                variant={
-                  session.status === 'completed' ? 'secondary' : 'default'
-                }
-              >
-                {session.status}
-              </Badge>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <h4 className="mb-2 font-semibold">Activity Log</h4>
-            {session.logs && session.logs.length > 0 ? (
-              <ScrollArea className="h-48 rounded-md border bg-background/50 p-4">
-                <div className="space-y-4">
-                  {session.logs.map((log) => (
-                    <div key={log.id} className="flex items-start gap-3 text-sm">
-                      <div>{categoryIcons[log.category]}</div>
-                      <div className="flex-grow">
-                        <p className="font-medium">{log.category}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {log.reasoning}
-                        </p>
-                      </div>
-                      <div className="whitespace-nowrap text-right text-xs text-muted-foreground">
-                        <p>{formatDuration(log.duration)}</p>
-                        <p>
-                          {formatDistanceToNow(log.timestamp, {
-                            addSuffix: true,
-                          })}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
+    <>
+      <div className="space-y-6">
+        {sessions?.map((session) => (
+          <Card key={session.id} className="overflow-hidden bg-card/30 backdrop-blur-lg border border-border/50 shadow-lg relative group">
+            <CardHeader>
+              <div className="flex items-start justify-between">
+                <div>
+                  <CardTitle>
+                    {session.startTime
+                      ? format(session.startTime.toDate(), 'MMMM d, yyyy - p')
+                      : 'Session'}
+                  </CardTitle>
+                  <CardDescription>
+                    Total Duration: {formatDuration(session.totalFocusTime)}
+                  </CardDescription>
                 </div>
-              </ScrollArea>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                No activity logs for this session.
-              </p>
-            )}
-          </CardContent>
-        </Card>
-      ))}
-    </div>
+                <div className="flex items-center gap-2">
+                  <Badge
+                    variant={
+                      session.status === 'completed' ? 'secondary' : 'default'
+                    }
+                  >
+                    {session.status}
+                  </Badge>
+                   <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={() => setSessionToDelete(session)}
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                    <span className="sr-only">Delete session</span>
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <h4 className="mb-2 font-semibold">Activity Log</h4>
+              {session.logs && session.logs.length > 0 ? (
+                <ScrollArea className="h-48 rounded-md border bg-background/50 p-4">
+                  <div className="space-y-4">
+                    {session.logs.map((log) => (
+                      <div key={log.id} className="flex items-start gap-3 text-sm">
+                        <div>{categoryIcons[log.category]}</div>
+                        <div className="flex-grow">
+                          <p className="font-medium">{log.category}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {log.reasoning}
+                          </p>
+                        </div>
+                        <div className="whitespace-nowrap text-right text-xs text-muted-foreground">
+                          <p>{formatDuration(log.duration)}</p>
+                          <p>
+                            {formatDistanceToNow(new Date(log.timestamp), {
+                              addSuffix: true,
+                            })}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  No activity logs for this session.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <AlertDialog open={!!sessionToDelete} onOpenChange={(open) => !open && setSessionToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete this
+              study session and all of its associated logs from our servers.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteSession} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

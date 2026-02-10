@@ -3,15 +3,24 @@
 import { SessionHistory } from '@/components/app/session-history';
 import { Button } from '@/components/ui/button';
 import { useFirebase } from '@/firebase';
-import { Loader } from 'lucide-react';
+import { Loader, Calendar as CalendarIcon } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { ThemeToggle } from '@/components/app/theme-toggle';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 export default function HistoryPage() {
   const { user, isUserLoading } = useFirebase();
   const router = useRouter();
+  const [date, setDate] = useState<Date | undefined>();
 
   useEffect(() => {
     if (!isUserLoading && !user) {
@@ -43,13 +52,37 @@ export default function HistoryPage() {
         </div>
       </header>
       <main className="container mx-auto max-w-4xl flex-grow p-4 sm:p-6 lg:p-8">
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold tracking-tight">Session History</h2>
-          <p className="text-muted-foreground">
-            Review your past focus sessions.
-          </p>
+        <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h2 className="text-3xl font-bold tracking-tight">Session History</h2>
+            <p className="text-muted-foreground">
+              Review your past focus sessions.
+            </p>
+          </div>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant={'outline'}
+                className={cn(
+                  'w-[280px] justify-start text-left font-normal',
+                  !date && 'text-muted-foreground'
+                )}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {date ? format(date, 'PPP') : <span>Pick a date to filter</span>}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0">
+              <Calendar
+                mode="single"
+                selected={date}
+                onSelect={setDate}
+                initialFocus
+              />
+            </PopoverContent>
+          </Popover>
         </div>
-        <SessionHistory />
+        <SessionHistory selectedDate={date} />
       </main>
     </div>
   );
