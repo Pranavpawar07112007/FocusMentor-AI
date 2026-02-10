@@ -16,6 +16,7 @@ import {
 import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { HistoricalTrendsChart } from '@/components/app/historical-trends-chart';
 
 export default function HistoryPage() {
   const { user, isUserLoading } = useFirebase();
@@ -52,7 +53,7 @@ export default function HistoryPage() {
           <ThemeToggle />
         </div>
       </header>
-      <main className="container mx-auto max-w-4xl flex-grow px-4 pt-24 sm:px-6 lg:px-8">
+      <main className="container mx-auto max-w-5xl flex-grow px-4 pt-24 sm:px-6 lg:px-8">
         <div
           className={`mb-8 rounded-lg p-6 ${glassmorphismStyle}`}
         >
@@ -73,7 +74,7 @@ export default function HistoryPage() {
                   )}
                 >
                   <CalendarIcon className="mr-2 h-4 w-4" />
-                  {date ? format(date, 'PPP') : <span>Pick a date to filter</span>}
+                  {date ? format(date, 'PPP') : <span>Filter by specific date</span>}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0">
@@ -87,6 +88,11 @@ export default function HistoryPage() {
             </Popover>
           </div>
         </div>
+
+        <div className="mb-8">
+          <HistoricalTrendsChart />
+        </div>
+
         <SessionHistory selectedDate={date} />
       </main>
     </div>
