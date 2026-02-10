@@ -89,8 +89,8 @@ export default {
           },
         },
         'pulse-amber': {
-          '0%, 100%': { opacity: '1', filter: 'drop-shadow(0 0 5px hsl(var(--accent)))' },
-          '50%': { opacity: '0.7', filter: 'drop-shadow(0 0 15px hsl(var(--accent)))' },
+          '0%, 100%': { opacity: '1', filter: 'drop-shadow(0 0 5px currentColor)' },
+          '50%': { opacity: '0.7', filter: 'drop-shadow(0 0 15px currentColor)' },
         }
       },
       animation: {
