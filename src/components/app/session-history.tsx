@@ -28,6 +28,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { deleteDocumentNonBlocking } from '@/firebase';
+import Link from 'next/link';
 
 const categoryIcons: Record<LogEntry['category'], React.ReactNode> = {
   'Coding': <Code className="h-4 w-4 text-blue-400" />,
@@ -141,6 +142,9 @@ export function SessionHistory({ selectedDate }: SessionHistoryProps) {
                   >
                     {session.status}
                   </Badge>
+                  <Button asChild variant="outline" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Link href={`/history/${session.id}`}>View Report</Link>
+                  </Button>
                    <Button
                     variant="ghost"
                     size="icon"

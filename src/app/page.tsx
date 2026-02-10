@@ -58,9 +58,12 @@ export default function Home() {
     await startSession();
   }, [startSession]);
 
-  const handleEndSession = useCallback(() => {
-    endSession();
-  }, [endSession]);
+  const handleEndSession = useCallback(async () => {
+    const endedSessionId = await endSession();
+    if (endedSessionId) {
+      router.push(`/history/${endedSessionId}`);
+    }
+  }, [endSession, router]);
 
   const handleSignOut = () => {
     if (auth) {

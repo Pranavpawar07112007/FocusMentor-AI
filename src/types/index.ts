@@ -15,10 +15,11 @@ export type LogEntry = {
 
 export type StudySession = {
   id?: string;
-  userId: string; // Assuming you'll have user auth later
+  userId: string;
   startTime: Timestamp;
   endTime: Timestamp | null;
   totalFocusTime: number; // in seconds
   status: 'active' | 'paused' | 'completed';
   logs: LogEntry[];
+  summary?: string;
 };

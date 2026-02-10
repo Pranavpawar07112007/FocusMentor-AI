@@ -304,8 +304,8 @@ export function useFocusSession({
     }
   }, [enabled, toast, cleanup, runScreenAudit, initializeMediaPipe, webcamVideoRef, screenVideoRef, firestore, user]);
 
-  const endSession = useCallback(async () => {
-    if (!sessionId || !user || !firestore) return;
+  const endSession = useCallback(async (): Promise<string | null> => {
+    if (!sessionId || !user || !firestore) return null;
 
     const finalLogs = [...logs];
     if (awayStartTimeRef.current !== null) {
@@ -321,9 +321,11 @@ export function useFocusSession({
     
     cleanup();
     
+    let sessionSummaryText: string | null = null;
     try {
       const summaryResult = await summarizeStudySession({ logs: finalLogs });
-      setSessionSummary(summaryResult.summary);
+      sessionSummaryText = summaryResult.summary;
+      setSessionSummary(sessionSummaryText);
     } catch(e) {
       console.error("Error summarizing session", e);
     }
@@ -334,9 +336,11 @@ export function useFocusSession({
       status: 'completed',
       totalFocusTime: time,
       logs: finalLogs,
+      summary: sessionSummaryText,
     });
     
     setStatus('stopped');
+    return sessionId;
   }, [sessionId, cleanup, time, logs, firestore, user]);
   
   useEffect(() => {
