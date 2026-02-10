@@ -17,6 +17,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { HistoricalTrendsChart } from '@/components/app/historical-trends-chart';
+import { ProductivityByHourChart } from '@/components/app/productivity-by-hour-chart';
 
 export default function HistoryPage() {
   const { user, isUserLoading } = useFirebase();
@@ -53,7 +54,7 @@ export default function HistoryPage() {
           <ThemeToggle />
         </div>
       </header>
-      <main className="container mx-auto max-w-5xl flex-grow px-4 pt-24 sm:px-6 lg:px-8">
+      <main className="container mx-auto max-w-7xl flex-grow px-4 pt-24 sm:px-6 lg:px-8">
         <div
           className={`mb-8 rounded-lg p-6 ${glassmorphismStyle}`}
         >
@@ -61,7 +62,7 @@ export default function HistoryPage() {
             <div>
               <h2 className="text-3xl font-bold tracking-tight">Session History</h2>
               <p className="text-muted-foreground">
-                Review your past focus sessions.
+                Review your past focus sessions and analyze your productivity trends.
               </p>
             </div>
             <Popover>
@@ -89,8 +90,9 @@ export default function HistoryPage() {
           </div>
         </div>
 
-        <div className="mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
           <HistoricalTrendsChart />
+          <ProductivityByHourChart />
         </div>
 
         <SessionHistory selectedDate={date} />
