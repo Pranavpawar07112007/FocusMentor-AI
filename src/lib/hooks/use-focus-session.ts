@@ -122,9 +122,16 @@ export function useFocusSession({
   }, [screenVideoRef, addLog, updateFirestore, toast]);
   
   const detectFace = useCallback(() => {
-    if (!faceLandmarkerRef.current || !webcamVideoRef.current || webcamVideoRef.current.readyState < 2) return;
-    
     const video = webcamVideoRef.current;
+    if (!video || !faceLandmarkerRef.current) {
+      return;
+    }
+
+    // readyState 4 means we have enough data to play the media at the current playback position.
+    if (video.readyState !== 4) {
+      return;
+    }
+
     if (video.currentTime === lastVideoTimeRef.current) return;
     lastVideoTimeRef.current = video.currentTime;
 
