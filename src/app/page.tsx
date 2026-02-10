@@ -23,7 +23,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { ThemeToggle } from '@/components/app/theme-toggle';
 
 export default function Home() {
   const [privacyShield, setPrivacyShield] = useState(false);
@@ -82,7 +82,7 @@ export default function Home() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background font-body text-foreground">
-      <header className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between border-b border-border/50 bg-background/50 p-4 backdrop-blur-sm">
+      <header className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between border-b border-border/20 bg-background/80 p-4 backdrop-blur-lg">
         <h1 className="text-xl font-bold text-primary font-headline">
           FocusMentor AI
         </h1>
@@ -97,6 +97,15 @@ export default function Home() {
               aria-label="Privacy Shield"
             />
           </div>
+          
+          <Button variant="ghost" asChild>
+            <Link href="/history">
+              <History className="h-4 w-4" />
+              <span className="ml-2 hidden sm:inline">History</span>
+            </Link>
+          </Button>
+
+          <ThemeToggle />
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -120,13 +129,6 @@ export default function Home() {
                 </p>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link href="/history">
-                  <History className="mr-2 h-4 w-4" />
-                  <span>Session History</span>
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleSignOut}>
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Sign Out</span>
@@ -149,7 +151,7 @@ export default function Home() {
       <main className="mx-auto w-full max-w-7xl flex-grow px-4 pt-24 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
           <div
-            className={`flex flex-col items-center justify-center rounded-xl p-6 lg:col-span-2 ${glassmorphismStyle}`}
+            className={`flex flex-col items-center justify-center rounded-lg p-6 lg:col-span-2 ${glassmorphismStyle}`}
           >
             <div className="grid w-full grid-cols-1 items-center gap-8 md:grid-cols-2">
               <div className="relative flex flex-col items-center justify-center">
@@ -209,7 +211,7 @@ export default function Home() {
             </div>
 
             {status === 'stopped' && sessionSummary && (
-              <Card className={`mt-8 w-full ${glassmorphismStyle}`}>
+              <Card className={`mt-8 w-full rounded-lg ${glassmorphismStyle}`}>
                 <CardHeader>
                   <CardTitle>Session Summary</CardTitle>
                 </CardHeader>
@@ -222,7 +224,7 @@ export default function Home() {
             )}
           </div>
 
-          <div className={`flex flex-col rounded-xl p-6 ${glassmorphismStyle}`}>
+          <div className={`flex flex-col rounded-lg p-6 ${glassmorphismStyle}`}>
             <StatsDashboard logs={logs} />
           </div>
         </div>

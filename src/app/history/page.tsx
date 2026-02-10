@@ -7,6 +7,7 @@ import { Loader } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import { ThemeToggle } from '@/components/app/theme-toggle';
 
 export default function HistoryPage() {
   const { user, isUserLoading } = useFirebase();
@@ -27,14 +28,29 @@ export default function HistoryPage() {
   }
 
   return (
-    <div className="container mx-auto max-w-4xl p-4 sm:p-6 lg:p-8">
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Session History</h1>
-        <Button asChild variant="outline">
-          <Link href="/">Back to Focus</Link>
-        </Button>
-      </div>
-      <SessionHistory />
+    <div className="flex min-h-screen flex-col bg-background text-foreground">
+      <header className="sticky top-0 z-40 w-full border-b border-border/20 bg-background/80 backdrop-blur-lg">
+        <div className="container flex h-16 items-center justify-between">
+          <h1 className="text-xl font-bold text-primary font-headline">
+            <Link href="/">FocusMentor AI</Link>
+          </h1>
+          <div className="flex items-center gap-4">
+            <Button asChild variant="outline">
+              <Link href="/">Back to Focus</Link>
+            </Button>
+            <ThemeToggle />
+          </div>
+        </div>
+      </header>
+      <main className="container mx-auto max-w-4xl flex-grow p-4 sm:p-6 lg:p-8">
+        <div className="mb-8">
+          <h2 className="text-3xl font-bold tracking-tight">Session History</h2>
+          <p className="text-muted-foreground">
+            Review your past focus sessions.
+          </p>
+        </div>
+        <SessionHistory />
+      </main>
     </div>
   );
 }

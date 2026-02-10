@@ -57,19 +57,23 @@ export function SessionHistory() {
 
   if (!sessions || sessions.length === 0) {
     return (
-      <div className="py-16 text-center">
-        <h3 className="text-lg font-medium">No Sessions Yet</h3>
-        <p className="text-sm text-muted-foreground">
-          Your past study sessions will appear here once you complete them.
-        </p>
-      </div>
+      <Card className="bg-card/30 backdrop-blur-lg border border-border/50 shadow-lg">
+        <CardHeader>
+          <CardTitle>No Sessions Yet</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">
+            Your past study sessions will appear here once you complete them.
+          </p>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
     <div className="space-y-6">
       {sessions?.map((session) => (
-        <Card key={session.id} className="overflow-hidden">
+        <Card key={session.id} className="overflow-hidden bg-card/30 backdrop-blur-lg border border-border/50 shadow-lg">
           <CardHeader>
             <div className="flex items-start justify-between">
               <div>
@@ -94,7 +98,7 @@ export function SessionHistory() {
           <CardContent>
             <h4 className="mb-2 font-semibold">Activity Log</h4>
             {session.logs && session.logs.length > 0 ? (
-              <ScrollArea className="h-48 rounded-md border p-4">
+              <ScrollArea className="h-48 rounded-md border bg-background/50 p-4">
                 <div className="space-y-4">
                   {session.logs.map((log) => (
                     <div key={log.id} className="flex items-start gap-3 text-sm">
