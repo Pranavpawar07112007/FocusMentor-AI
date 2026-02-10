@@ -131,7 +131,7 @@ export function useFocusSession({
 
     const results = faceLandmarkerRef.current.detectForVideo(video, Date.now());
 
-    if (results.faceLandmarks.length > 0) {
+    if (results && results.faceLandmarks.length > 0) {
       awayCounterRef.current = 0;
       if (status === 'paused') {
         setStatus('running');
