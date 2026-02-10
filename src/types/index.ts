@@ -13,6 +13,12 @@ export type LogEntry = {
   duration: number; // in seconds
 };
 
+export type Goal = {
+  description: string;
+  targetDuration?: number; // in seconds
+  completed: boolean;
+};
+
 export type StudySession = {
   id?: string;
   userId: string;
@@ -22,4 +28,5 @@ export type StudySession = {
   status: 'active' | 'paused' | 'completed';
   logs: LogEntry[];
   summary?: string;
+  goal?: Goal;
 };

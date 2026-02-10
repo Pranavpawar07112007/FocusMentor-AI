@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Shield, Loader, Play, Square, LogOut, History } from 'lucide-react';
+import { Shield, Loader, Play, Square, LogOut, History, Goal as GoalIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
@@ -24,6 +24,19 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ThemeToggle } from '@/components/app/theme-toggle';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogTrigger,
+  DialogClose,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Slider } from '@/components/ui/slider';
+import { Progress } from '@/components/ui/progress';
 
 export default function Home() {
   const [privacyShield, setPrivacyShield] = useState(false);
@@ -31,6 +44,10 @@ export default function Home() {
   const screenVideoRef = useRef<HTMLVideoElement>(null);
   const { toast } = useToast();
   const router = useRouter();
+
+  const [isGoalDialogOpen, setIsGoalDialogOpen] = useState(false);
+  const [goalDescription, setGoalDescription] = useState('');
+  const [goalDuration, setGoalDuration] = useState(3600);
 
   const { user, auth, isUserLoading } = useFirebase();
 
@@ -42,6 +59,8 @@ export default function Home() {
     endSession,
     focusState,
     sessionSummary,
+    goal,
+    goalProgress,
   } = useFocusSession({
     enabled: !privacyShield && !!user,
     webcamVideoRef,
@@ -55,8 +74,14 @@ export default function Home() {
   }, [user, isUserLoading, router]);
 
   const handleStartSession = useCallback(async () => {
-    await startSession();
-  }, [startSession]);
+    const goalToSet = {
+      description: goalDescription || 'Complete a focused study session.',
+      targetDuration: goalDuration,
+    };
+    await startSession(goalToSet);
+    setIsGoalDialogOpen(false);
+    setGoalDescription('');
+  }, [startSession, goalDescription, goalDuration]);
 
   const handleEndSession = useCallback(async () => {
     const endedSessionId = await endSession();
@@ -81,6 +106,13 @@ export default function Home() {
         <Loader className="h-8 w-8 animate-spin" />
       </div>
     );
+  }
+
+  const formatSliderLabel = (seconds: number) => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    if (hours > 0) return `${hours}h ${minutes}m`;
+    return `${minutes}m`;
   }
 
   return (
@@ -202,9 +234,51 @@ export default function Home() {
 
             <div className="mt-8">
               {status === 'idle' || status === 'stopped' ? (
-                <Button size="lg" onClick={handleStartSession}>
-                  <Play className="mr-2 h-5 w-5" /> Start Focus Session
-                </Button>
+                <Dialog open={isGoalDialogOpen} onOpenChange={setIsGoalDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button size="lg">
+                      <Play className="mr-2 h-5 w-5" /> Start Focus Session
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Set a Goal for Your Session</DialogTitle>
+                      <DialogDescription>
+                        What do you want to accomplish? Setting a goal helps you stay on track.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="goal-desc">Goal Description</Label>
+                        <Input 
+                          id="goal-desc" 
+                          placeholder="e.g., Finish chapter 3 of Math homework"
+                          value={goalDescription}
+                          onChange={(e) => setGoalDescription(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="goal-duration">Target Duration</Label>
+                        <Slider
+                          id="goal-duration"
+                          min={900}
+                          max={14400}
+                          step={900}
+                          value={[goalDuration]}
+                          onValueChange={(value) => setGoalDuration(value[0])}
+                        />
+                        <div className="text-center text-sm text-muted-foreground">
+                          {formatSliderLabel(goalDuration)}
+                        </div>
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button onClick={handleStartSession}>
+                        Start Session
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
               ) : status === 'initializing' ? (
                 <div className="mt-8 flex items-center text-lg text-muted-foreground">
                   <Loader className="mr-2 h-5 w-5 animate-spin" />
@@ -212,6 +286,28 @@ export default function Home() {
                 </div>
               ) : null}
             </div>
+
+            {(status === 'running' || status === 'paused') && goal && (
+              <Card className={`mt-8 w-full max-w-lg rounded-lg ${glassmorphismStyle}`}>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <GoalIcon className="h-5 w-5" />
+                    Current Goal
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-muted-foreground mb-4">{goal.description}</p>
+                  {goal.targetDuration && (
+                    <>
+                      <Progress value={goalProgress} className="w-full" />
+                      <p className="text-xs text-right mt-1 text-muted-foreground">
+                        {goalProgress?.toFixed(0)}% complete
+                      </p>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            )}
 
             {status === 'stopped' && sessionSummary && (
               <Card className={`mt-8 w-full rounded-lg ${glassmorphismStyle}`}>

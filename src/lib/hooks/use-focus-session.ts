@@ -9,7 +9,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { analyzeScreenActivity } from '@/ai/flows/analyze-screen-activity';
 import { summarizeStudySession } from '@/ai/flows/summarize-study-session';
-import type { SessionStatus, FocusState, LogEntry, StudySession, ActivityCategory } from '@/types';
+import type { SessionStatus, FocusState, LogEntry, StudySession, ActivityCategory, Goal } from '@/types';
 import { useFirebase } from '@/firebase';
 import { addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
@@ -34,6 +34,7 @@ export function useFocusSession({
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [sessionSummary, setSessionSummary] = useState<string | null>(null);
+  const [goal, setGoal] = useState<Goal | null>(null);
 
   const { toast } = useToast();
   const { firestore, user } = useFirebase();
@@ -64,6 +65,7 @@ export function useFocusSession({
     webcamStreamRef.current = null;
     screenStreamRef.current = null;
     auditIntervalRef.current = null;
+    setGoal(null);
 
     if (faceLandmarkerRef.current) {
       faceLandmarkerRef.current.close();
@@ -209,6 +211,22 @@ export function useFocusSession({
     };
   }, [status, predictWebcam]);
   
+  useEffect(() => {
+    if (status === 'running' && goal && !goal.completed && goal.targetDuration) {
+      if (time >= goal.targetDuration) {
+        setGoal(g => (g ? { ...g, completed: true } : null));
+        if (sessionId && user && firestore) {
+          const sessionRef = doc(firestore, 'users', user.uid, 'study_sessions', sessionId);
+          updateDocumentNonBlocking(sessionRef, { 'goal.completed': true });
+        }
+        toast({
+          title: "Goal Achieved! \uD83C\uDF89",
+          description: "You've successfully completed your goal.",
+        });
+      }
+    }
+  }, [time, status, goal, sessionId, user, firestore, toast]);
+
   const initializeMediaPipe = useCallback(async () => {
     try {
       const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm");
@@ -234,7 +252,7 @@ export function useFocusSession({
     }
   }, [toast]);
   
-  const startSession = useCallback(async () => {
+  const startSession = useCallback(async (goalInput?: { description: string; targetDuration?: number }) => {
     if (!enabled) {
       toast({ title: 'Privacy Shield is on or you are not logged in.', description: 'Please disable it and log in to start a session.' });
       return;
@@ -251,6 +269,7 @@ export function useFocusSession({
     
     setStatus('initializing');
     setSessionSummary(null);
+    setGoal(null);
 
     try {
       if(!faceLandmarkerRef.current) {
@@ -274,6 +293,12 @@ export function useFocusSession({
         status: 'active',
         logs: [],
       };
+
+      if (goalInput?.description) {
+        const newGoal = { ...goalInput, completed: false };
+        newSession.goal = newGoal;
+        setGoal(newGoal);
+      }
       
       if (!firestore) throw new Error("Firestore not available");
 
@@ -340,6 +365,7 @@ export function useFocusSession({
     });
     
     setStatus('stopped');
+    setGoal(null);
     return sessionId;
   }, [sessionId, cleanup, time, logs, firestore, user]);
   
@@ -352,6 +378,8 @@ export function useFocusSession({
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  
+  const goalProgress = goal?.targetDuration ? Math.min((time / goal.targetDuration) * 100, 100) : 0;
 
-  return { status, time, logs, startSession, endSession, focusState, sessionSummary };
+  return { status, time, logs, startSession, endSession, focusState, sessionSummary, goal, goalProgress };
 }

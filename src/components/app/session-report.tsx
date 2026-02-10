@@ -1,13 +1,13 @@
 'use client';
 
 import React from 'react';
-import { StudySession, ActivityCategory } from '@/types';
+import { StudySession, ActivityCategory, Goal } from '@/types';
 import { WithId } from '@/firebase';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { format } from 'date-fns';
-import { Code, Sigma, Library, Coffee, UserMinus, Clock } from 'lucide-react';
+import { Code, Sigma, Library, Coffee, UserMinus, Clock, Goal as GoalIcon, CheckCircle2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
 type SessionReportProps = {
@@ -107,17 +107,44 @@ export function SessionReport({ session }: SessionReportProps) {
           </CardContent>
         </Card>
 
-        <Card className={`lg:col-span-3 ${glassmorphismStyle}`}>
-            <CardHeader>
-                <CardTitle>AI Summary</CardTitle>
-                <CardDescription>An AI-generated overview of your session.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <p className="text-muted-foreground italic">
-                    {session.summary || "No summary was generated for this session."}
-                </p>
-            </CardContent>
-        </Card>
+        <div className="lg:col-span-3 flex flex-col gap-8">
+            <Card className={glassmorphismStyle}>
+                <CardHeader>
+                    <CardTitle>AI Summary</CardTitle>
+                    <CardDescription>An AI-generated overview of your session.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-muted-foreground italic">
+                        {session.summary || "No summary was generated for this session."}
+                    </p>
+                </CardContent>
+            </Card>
+
+            {session.goal && (
+                <Card className={glassmorphismStyle}>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <GoalIcon />
+                            Session Goal
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-muted-foreground mb-4">{session.goal.description}</p>
+                        {session.goal.completed ? (
+                            <Badge variant="secondary" className="border-green-500/50 text-green-700 dark:text-green-400">
+                                <CheckCircle2 className="mr-2 h-4 w-4" />
+                                Completed
+                            </Badge>
+                        ) : (
+                             <Badge variant="outline">Not Completed</Badge>
+                        )}
+                        {session.goal.targetDuration && (
+                            <p className="text-xs text-muted-foreground mt-2">Target: {formatDuration(session.goal.targetDuration)}</p>
+                        )}
+                    </CardContent>
+                </Card>
+            )}
+        </div>
       </div>
 
       <Card className={glassmorphismStyle}>

@@ -65,6 +65,28 @@
               "duration"
             ]
           }
+        },
+        "goal": {
+          "type": "object",
+          "description": "An optional, user-defined goal for the study session.",
+          "properties": {
+            "description": {
+              "type": "string",
+              "description": "A description of the goal."
+            },
+            "targetDuration": {
+              "type": "number",
+              "description": "The target duration in seconds to achieve the goal. Optional."
+            },
+            "completed": {
+              "type": "boolean",
+              "description": "Whether the goal has been completed."
+            }
+          },
+          "required": [
+            "description",
+            "completed"
+          ]
         }
       },
       "required": [
