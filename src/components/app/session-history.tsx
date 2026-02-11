@@ -102,7 +102,7 @@ export function SessionHistory({ selectedDate }: SessionHistoryProps) {
 
   if (!sessions || sessions.length === 0) {
     return (
-      <Card className="bg-card/30 backdrop-blur-lg border border-border/50 shadow-lg">
+      <Card className="bg-card/30 backdrop-blur-lg border border-border/50 shadow-xl transition-all duration-300 hover:shadow-2xl hover:-translate-y-1">
         <CardHeader>
           <CardTitle>No Sessions Found</CardTitle>
         </CardHeader>
@@ -121,7 +121,7 @@ export function SessionHistory({ selectedDate }: SessionHistoryProps) {
     <>
       <div className="space-y-6">
         {sessions?.map((session) => (
-          <Card key={session.id} className="overflow-hidden bg-card/30 backdrop-blur-lg border border-border/50 shadow-lg relative group">
+          <Card key={session.id} className="overflow-hidden bg-card/30 backdrop-blur-lg border border-border/50 shadow-xl relative group transition-all duration-300 hover:shadow-2xl hover:-translate-y-1">
             <CardHeader>
               <div className="flex items-start justify-between">
                 <div>

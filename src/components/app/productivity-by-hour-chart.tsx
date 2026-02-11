@@ -9,7 +9,7 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, XAxis, YAxis, Toolti
 import { getHours } from 'date-fns';
 import { Loader } from 'lucide-react';
 
-const glassmorphismStyle = 'bg-card/30 backdrop-blur-lg border border-border/50 shadow-lg';
+const glassmorphismStyle = 'bg-card/30 backdrop-blur-lg border border-border/50 shadow-xl transition-all duration-300 hover:shadow-2xl hover:-translate-y-1';
 
 export function ProductivityByHourChart() {
   const { user, firestore } = useFirebase();

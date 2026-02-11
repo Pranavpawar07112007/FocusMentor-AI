@@ -54,7 +54,7 @@ const formatDuration = (seconds: number) => {
   };
 
 export function SessionReport({ session }: SessionReportProps) {
-    const glassmorphismStyle = 'bg-card/30 backdrop-blur-lg border border-border/50 shadow-lg';
+    const glassmorphismStyle = 'bg-card/30 backdrop-blur-lg border border-border/50 shadow-xl transition-all duration-300 hover:shadow-2xl hover:-translate-y-1';
 
     const activityData = React.useMemo(() => {
         const data: { [key: string]: number } = {};

@@ -74,7 +74,7 @@ export default function SettingsPage() {
     );
   }
 
-  const glassmorphismStyle = 'bg-card/30 backdrop-blur-lg border border-border/50 shadow-lg';
+  const glassmorphismStyle = 'bg-card/30 backdrop-blur-lg border border-border/50 shadow-xl transition-all duration-300 hover:shadow-2xl hover:-translate-y-1';
 
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">

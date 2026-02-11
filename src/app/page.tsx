@@ -89,7 +89,7 @@ export default function Home() {
   }, [endSession, router]);
 
   const glassmorphismStyle =
-    'bg-card/30 backdrop-blur-lg border border-border/50 shadow-lg';
+    'bg-card/30 backdrop-blur-lg border border-border/50 shadow-xl transition-all duration-300 hover:shadow-2xl hover:-translate-y-1';
   
   if (isUserLoading || !user) {
     return (
