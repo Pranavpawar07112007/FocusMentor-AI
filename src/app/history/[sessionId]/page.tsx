@@ -50,7 +50,7 @@ export default function SessionReportPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground">
+    <div className="flex min-h-screen flex-col text-foreground">
       <AppHeader activePage="history" />
       <main className="container mx-auto max-w-5xl flex-grow px-4 pt-24 sm:px-6 lg:px-8">
         <SessionReport session={session as WithId<StudySession>} />

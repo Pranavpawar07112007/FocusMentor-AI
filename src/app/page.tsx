@@ -107,7 +107,7 @@ export default function Home() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-background font-body text-foreground">
+    <div className="flex min-h-screen flex-col font-body text-foreground">
       <AppHeader activePage="focus">
         {(status === 'running' || status === 'paused') && (
           <Button
