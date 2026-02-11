@@ -36,6 +36,7 @@ export function useFocusSession({
   const [sessionSummary, setSessionSummary] = useState<string | null>(null);
   const [goal, setGoal] = useState<Goal | null>(null);
   const [isPrivacyShieldActive, setIsPrivacyShieldActive] = useState(true);
+  const [permissions, setPermissions] = useState<{ webcam: boolean; screen: boolean }>({ webcam: false, screen: false });
 
   const { toast } = useToast();
   const { firestore, user } = useFirebase();
@@ -81,6 +82,7 @@ export function useFocusSession({
     screenStreamRef.current = null;
     auditIntervalRef.current = null;
     setGoal(null);
+    setPermissions({ webcam: false, screen: false });
 
     if (faceLandmarkerRef.current) {
       faceLandmarkerRef.current.close();
@@ -116,7 +118,7 @@ export function useFocusSession({
   }, [sessionId, time, logs, user, firestore]);
 
   const runScreenAudit = useCallback(async () => {
-    if (!screenVideoRef.current || screenVideoRef.current.readyState < 2) return;
+    if (!permissions.screen || !screenVideoRef.current || screenVideoRef.current.readyState < 2) return;
     
     const canvas = document.createElement('canvas');
     canvas.width = screenVideoRef.current.videoWidth;
@@ -147,9 +149,10 @@ export function useFocusSession({
         description: 'Could not analyze screen activity.',
       });
     }
-  }, [screenVideoRef, addLog, updateFirestore, toast, status, customCategoryNames]);
+  }, [screenVideoRef, addLog, updateFirestore, toast, status, customCategoryNames, permissions.screen]);
 
   const predictWebcam = useCallback(() => {
+    if (!permissions.webcam) return;
     const video = webcamVideoRef.current;
 
     if (!faceLandmarkerRef.current) {
@@ -189,7 +192,7 @@ export function useFocusSession({
     } catch (e) {
         console.error("Error during face detection:", e);
     }
-  }, [status, webcamVideoRef, addLog]);
+  }, [status, webcamVideoRef, addLog, permissions.webcam]);
 
   useEffect(() => {
     let timerId: NodeJS.Timeout;
@@ -267,12 +270,23 @@ export function useFocusSession({
     }
   }, [toast]);
   
-  const startSession = useCallback(async (goalInput?: { description: string; targetDuration?: number }) => {
-    if (!enabled || isPrivacyShieldActive) {
-      toast({ title: 'Privacy Shield is on or you are not logged in.', description: 'Please disable it and log in to start a session.' });
+  const startSession = useCallback(async (options: { goalInput?: { description: string; targetDuration?: number }; permissions: { webcam: boolean; screen: boolean; } }) => {
+    const { goalInput, permissions: sessionPermissions } = options;
+
+    if (!enabled) {
+      toast({ title: 'You are not logged in.', description: 'Please log in to start a session.' });
       return;
     }
 
+    if (isPrivacyShieldActive && (sessionPermissions.webcam || sessionPermissions.screen)) {
+      toast({
+        variant: 'destructive',
+        title: 'Privacy Shield is On',
+        description: 'Disable the Privacy Shield in Settings to use camera or screen monitoring.',
+      });
+      return;
+    }
+    
     if (!user) {
       toast({
         variant: 'destructive',
@@ -285,20 +299,24 @@ export function useFocusSession({
     setStatus('initializing');
     setSessionSummary(null);
     setGoal(null);
+    setPermissions(sessionPermissions);
 
     try {
-      if(!faceLandmarkerRef.current) {
-        await initializeMediaPipe();
-        if(!faceLandmarkerRef.current) throw new Error("FaceLandmarker not initialized");
+      if (sessionPermissions.webcam) {
+        if(!faceLandmarkerRef.current) {
+          await initializeMediaPipe();
+          if(!faceLandmarkerRef.current) throw new Error("FaceLandmarker not initialized");
+        }
+        const webcamStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        webcamStreamRef.current = webcamStream;
+        if (webcamVideoRef.current) webcamVideoRef.current.srcObject = webcamStream;
       }
 
-      const webcamStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-      webcamStreamRef.current = webcamStream;
-      if (webcamVideoRef.current) webcamVideoRef.current.srcObject = webcamStream;
-
-      const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
-      screenStreamRef.current = screenStream;
-      if (screenVideoRef.current) screenVideoRef.current.srcObject = screenStream;
+      if (sessionPermissions.screen) {
+        const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+        screenStreamRef.current = screenStream;
+        if (screenVideoRef.current) screenVideoRef.current.srcObject = screenStream;
+      }
       
       const newSession: Omit<StudySession, 'id'> = {
         userId: user.uid,
@@ -307,6 +325,7 @@ export function useFocusSession({
         totalFocusTime: 0,
         status: 'active',
         logs: [],
+        permissions: sessionPermissions,
       };
 
       if (goalInput?.description) {
@@ -330,7 +349,9 @@ export function useFocusSession({
       setStatus('running');
       setFocusState('focus');
 
-      auditIntervalRef.current = setInterval(runScreenAudit, AUDIT_INTERVAL);
+      if (sessionPermissions.screen) {
+        auditIntervalRef.current = setInterval(runScreenAudit, AUDIT_INTERVAL);
+      }
 
     } catch (err) {
       console.error('Failed to start session:', err);
@@ -363,9 +384,14 @@ export function useFocusSession({
     
     let sessionSummaryText: string | null = null;
     try {
-      const summaryResult = await summarizeStudySession({ logs: finalLogs });
-      sessionSummaryText = summaryResult.summary;
-      setSessionSummary(sessionSummaryText);
+      if (permissions.screen) {
+        const summaryResult = await summarizeStudySession({ logs: finalLogs });
+        sessionSummaryText = summaryResult.summary;
+        setSessionSummary(sessionSummaryText);
+      } else {
+        sessionSummaryText = "Screen analysis was disabled for this session.";
+        setSessionSummary(sessionSummaryText);
+      }
     } catch(e) {
       console.error("Error summarizing session", e);
     }
@@ -382,7 +408,7 @@ export function useFocusSession({
     setStatus('stopped');
     setGoal(null);
     return sessionId;
-  }, [sessionId, cleanup, time, logs, firestore, user]);
+  }, [sessionId, cleanup, time, logs, firestore, user, permissions.screen]);
   
   useEffect(() => {
     return () => {

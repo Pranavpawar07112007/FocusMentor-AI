@@ -7,8 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { format } from 'date-fns';
-import { Code, Sigma, Library, Coffee, UserMinus, Clock, Goal as GoalIcon, CheckCircle2, FileQuestion } from 'lucide-react';
+import { Code, Sigma, Library, Coffee, UserMinus, Clock, Goal as GoalIcon, CheckCircle2, FileQuestion, Camera, ScreenShare, CameraOff, ScreenShareOff } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 type SessionReportProps = {
   session: WithId<StudySession>;
@@ -78,8 +79,34 @@ export function SessionReport({ session }: SessionReportProps) {
     <div className="space-y-8">
       <Card className={glassmorphismStyle}>
         <CardHeader>
-            <CardTitle className="text-3xl">Session Report</CardTitle>
-            <CardDescription>{session.startTime ? format(session.startTime.toDate(), 'MMMM d, yyyy - p') : 'Session'}</CardDescription>
+          <div className="flex justify-between items-start">
+            <div>
+              <CardTitle className="text-3xl">Session Report</CardTitle>
+              <CardDescription>{session.startTime ? format(session.startTime.toDate(), 'MMMM d, yyyy - p') : 'Session'}</CardDescription>
+            </div>
+            {session.permissions && (
+              <div className="flex items-center gap-3 text-muted-foreground">
+                  <TooltipProvider>
+                      <Tooltip>
+                          <TooltipTrigger>
+                              {session.permissions.webcam ? <Camera /> : <CameraOff />}
+                          </TooltipTrigger>
+                          <TooltipContent>
+                              <p>Webcam {session.permissions.webcam ? 'Enabled' : 'Disabled'}</p>
+                          </TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                          <TooltipTrigger>
+                              {session.permissions.screen ? <ScreenShare /> : <ScreenShareOff />}
+                          </TooltipTrigger>
+                          <TooltipContent>
+                              <p>Screen Share {session.permissions.screen ? 'Enabled' : 'Disabled'}</p>
+                          </TooltipContent>
+                      </Tooltip>
+                  </TooltipProvider>
+              </div>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="flex flex-col items-center justify-center p-4 rounded-lg bg-background/50">

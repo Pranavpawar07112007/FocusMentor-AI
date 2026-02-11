@@ -35,4 +35,8 @@ export type StudySession = {
   logs: LogEntry[];
   summary?: string;
   goal?: Goal;
+  permissions?: {
+    webcam: boolean;
+    screen: boolean;
+  };
 };

@@ -80,6 +80,24 @@
             "description",
             "completed"
           ]
+        },
+        "permissions": {
+          "type": "object",
+          "description": "Specifies which monitoring features were enabled for the session.",
+          "properties": {
+            "webcam": {
+              "type": "boolean",
+              "description": "Whether the webcam was enabled for face detection."
+            },
+            "screen": {
+              "type": "boolean",
+              "description": "Whether the screen was enabled for activity analysis."
+            }
+          },
+          "required": [
+            "webcam",
+            "screen"
+          ]
         }
       },
       "required": [

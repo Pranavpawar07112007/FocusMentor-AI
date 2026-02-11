@@ -24,6 +24,8 @@ import {
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
 import { Progress } from '@/components/ui/progress';
+import { Switch } from '@/components/ui/switch';
+import { Separator } from '@/components/ui/separator';
 
 export default function Home() {
   const webcamVideoRef = useRef<HTMLVideoElement>(null);
@@ -34,6 +36,8 @@ export default function Home() {
   const [isGoalDialogOpen, setIsGoalDialogOpen] = useState(false);
   const [goalDescription, setGoalDescription] = useState('');
   const [goalDuration, setGoalDuration] = useState(3600);
+  const [useWebcam, setUseWebcam] = useState(true);
+  const [useScreen, setUseScreen] = useState(true);
 
   const { user, isUserLoading } = useFirebase();
 
@@ -64,22 +68,18 @@ export default function Home() {
   }, [user, isUserLoading, router]);
 
   const handleStartSession = useCallback(async () => {
-    if (isPrivacyShieldActive) {
-        toast({
-            variant: 'destructive',
-            title: 'Privacy Shield is On',
-            description: 'Please turn off the Privacy Shield in Settings to start a session.',
-        });
-        return;
-    }
     const goalToSet = {
       description: goalDescription || 'Complete a focused study session.',
       targetDuration: goalDuration,
     };
-    await startSession(goalToSet);
+    const permissions = {
+      webcam: useWebcam,
+      screen: useScreen,
+    };
+    await startSession({ goalInput: goalToSet, permissions });
     setIsGoalDialogOpen(false);
     setGoalDescription('');
-  }, [startSession, goalDescription, goalDuration, isPrivacyShieldActive, toast]);
+  }, [startSession, goalDescription, goalDuration, useWebcam, useScreen]);
 
   const handleEndSession = useCallback(async () => {
     const endedSessionId = await endSession();
@@ -180,14 +180,14 @@ export default function Home() {
                   </DialogTrigger>
                   <DialogContent>
                     <DialogHeader>
-                      <DialogTitle>Set a Goal for Your Session</DialogTitle>
+                      <DialogTitle>Set Up Your Focus Session</DialogTitle>
                       <DialogDescription>
-                        What do you want to accomplish? Setting a goal helps you stay on track.
+                        Configure your goal and monitoring preferences.
                       </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4">
                       <div className="space-y-2">
-                        <Label htmlFor="goal-desc">Goal Description</Label>
+                        <Label htmlFor="goal-desc">Goal Description (Optional)</Label>
                         <Input 
                           id="goal-desc" 
                           placeholder="e.g., Finish chapter 3 of Math homework"
@@ -208,6 +208,43 @@ export default function Home() {
                         <div className="text-center text-sm text-muted-foreground">
                           {formatSliderLabel(goalDuration)}
                         </div>
+                      </div>
+                      <Separator />
+                       <div className="space-y-3">
+                         <Label>Monitoring Options</Label>
+                        <div className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
+                            <div className="space-y-0.5">
+                                <Label htmlFor="use-webcam" className="text-sm font-medium">Enable Webcam</Label>
+                                <p className="text-xs text-muted-foreground">
+                                    Required for away detection.
+                                </p>
+                            </div>
+                            <Switch
+                                id="use-webcam"
+                                checked={useWebcam}
+                                onCheckedChange={setUseWebcam}
+                                disabled={isPrivacyShieldActive}
+                            />
+                        </div>
+                        <div className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
+                            <div className="space-y-0.5">
+                                <Label htmlFor="use-screen" className="text-sm font-medium">Enable Screen Analysis</Label>
+                                 <p className="text-xs text-muted-foreground">
+                                    Required for activity categorization.
+                                </p>
+                            </div>
+                            <Switch
+                                id="use-screen"
+                                checked={useScreen}
+                                onCheckedChange={setUseScreen}
+                                disabled={isPrivacyShieldActive}
+                            />
+                        </div>
+                        {isPrivacyShieldActive && (
+                            <p className="text-xs text-center text-amber-600 dark:text-amber-500 pt-1">
+                                Disable Privacy Shield in Settings to enable monitoring.
+                            </p>
+                        )}
                       </div>
                     </div>
                     <DialogFooter>

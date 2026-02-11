@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { format, formatDistanceToNow, startOfDay, endOfDay } from 'date-fns';
-import { Loader, Code, Sigma, Library, Coffee, UserMinus, Trash2, FileQuestion } from 'lucide-react';
+import { Loader, Code, Sigma, Library, Coffee, UserMinus, Trash2, FileQuestion, Camera, ScreenShare, CameraOff, ScreenShareOff } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import React, { useState } from 'react';
 import {
@@ -135,6 +135,20 @@ export function SessionHistory({ selectedDate }: SessionHistoryProps) {
                   </CardDescription>
                 </div>
                 <div className="flex items-center gap-2">
+                   {session.permissions && (
+                    <div className="flex items-center gap-1.5 opacity-60">
+                        {session.permissions.webcam ? (
+                            <Camera className="h-4 w-4" />
+                        ) : (
+                            <CameraOff className="h-4 w-4" />
+                        )}
+                        {session.permissions.screen ? (
+                            <ScreenShare className="h-4 w-4" />
+                        ) : (
+                            <ScreenShareOff className="h-4 w-4" />
+                        )}
+                    </div>
+                  )}
                   <Badge
                     variant={
                       session.status === 'completed' ? 'secondary' : 'default'
