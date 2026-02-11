@@ -95,19 +95,22 @@
     animation-delay: 0s;
   }
   .circle-2 {
-    @apply w-96 h-96 bg-accent/30;
+    @apply w-96 h-96;
+    background-color: hsl(var(--chart-2) / 0.3);
     top: 50%; left: 70%;
     animation-duration: 30s;
     animation-delay: 5s;
   }
   .circle-3 {
-    @apply w-64 h-64 bg-secondary/40;
+    @apply w-64 h-64;
+    background-color: hsl(var(--chart-3) / 0.4);
     top: 80%; left: 20%;
     animation-duration: 20s;
     animation-delay: 10s;
   }
    .circle-4 {
-    @apply w-80 h-80 bg-primary/20;
+    @apply w-80 h-80;
+    background-color: hsl(var(--chart-4) / 0.2);
     top: 30%; left: 50%;
     animation-duration: 35s;
     animation-delay: 2s;
