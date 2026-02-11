@@ -149,9 +149,11 @@ export default function MonthlyAchievementLogsPage() {
                   <PopoverContent className="w-auto p-0">
                     <Calendar
                       mode="single"
-                      selected={selectedDate}
-                      onSelect={(date) => date && setSelectedDate(date)}
-                      initialFocus
+                      month={selectedDate}
+                      onMonthChange={setSelectedDate}
+                      classNames={{
+                        table: "hidden",
+                      }}
                     />
                   </PopoverContent>
                 </Popover>
