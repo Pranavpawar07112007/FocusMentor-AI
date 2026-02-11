@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Loader, Play, Square, Goal as GoalIcon } from 'lucide-react';
+import { Loader, Play, Square, Goal as GoalIcon, BrainCircuit } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -21,11 +21,13 @@ import {
   DialogFooter,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
 import { Progress } from '@/components/ui/progress';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
+import { Textarea } from '@/components/ui/textarea';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { decomposeGoal } from '@/ai/flows/decompose-goal-flow';
 
 export default function Home() {
   const webcamVideoRef = useRef<HTMLVideoElement>(null);
@@ -38,6 +40,10 @@ export default function Home() {
   const [goalDuration, setGoalDuration] = useState(3600);
   const [useWebcam, setUseWebcam] = useState(true);
   const [useScreen, setUseScreen] = useState(true);
+
+  const [highLevelGoal, setHighLevelGoal] = useState('');
+  const [decomposedTasks, setDecomposedTasks] = useState<{ title: string; description: string; }[] | null>(null);
+  const [isDecomposing, setIsDecomposing] = useState(false);
 
   const { user, isUserLoading } = useFirebase();
 
@@ -67,7 +73,46 @@ export default function Home() {
     }
   }, [user, isUserLoading, router]);
 
+  const handleDialogOpenChange = (open: boolean) => {
+    setIsGoalDialogOpen(open);
+    if (!open) {
+      // Reset planner state when dialog closes
+      setHighLevelGoal('');
+      setDecomposedTasks(null);
+      setIsDecomposing(false);
+      setGoalDescription('');
+    }
+  };
+
+  const handleDecomposeGoal = async () => {
+    if (!highLevelGoal.trim()) {
+      toast({ variant: 'destructive', title: 'Please enter a goal.' });
+      return;
+    }
+    setIsDecomposing(true);
+    setDecomposedTasks(null);
+    try {
+      const result = await decomposeGoal({ goal: highLevelGoal });
+      setDecomposedTasks(result.subTasks);
+    } catch (error) {
+      console.error('Failed to decompose goal:', error);
+      toast({ variant: 'destructive', title: 'AI Planner Failed', description: 'Could not break down your goal. Please try again.' });
+      setDecomposedTasks(null); // Reset on failure
+    } finally {
+      setIsDecomposing(false);
+    }
+  };
+
   const handleStartSession = useCallback(async () => {
+    if (decomposedTasks && decomposedTasks.length > 0 && !goalDescription) {
+      toast({
+        variant: 'destructive',
+        title: 'Please select a task',
+        description: 'You must choose one of the AI-generated tasks to focus on.',
+      });
+      return;
+    }
+    
     const goalToSet = {
       description: goalDescription || 'Complete a focused study session.',
       targetDuration: goalDuration,
@@ -78,8 +123,8 @@ export default function Home() {
     };
     await startSession({ goalInput: goalToSet, permissions });
     setIsGoalDialogOpen(false);
-    setGoalDescription('');
-  }, [startSession, goalDescription, goalDuration, useWebcam, useScreen]);
+  }, [startSession, goalDescription, goalDuration, useWebcam, useScreen, toast, decomposedTasks]);
+
 
   const handleEndSession = useCallback(async () => {
     const endedSessionId = await endSession();
@@ -172,86 +217,131 @@ export default function Home() {
 
             <div className="mt-8">
               {status === 'idle' || status === 'stopped' ? (
-                <Dialog open={isGoalDialogOpen} onOpenChange={setIsGoalDialogOpen}>
+                <Dialog open={isGoalDialogOpen} onOpenChange={handleDialogOpenChange}>
                   <DialogTrigger asChild>
                     <Button size="lg">
                       <Play className="mr-2 h-5 w-5" /> Start Focus Session
                     </Button>
                   </DialogTrigger>
-                  <DialogContent>
+                  <DialogContent className="sm:max-w-lg">
                     <DialogHeader>
                       <DialogTitle>Set Up Your Focus Session</DialogTitle>
                       <DialogDescription>
-                        Configure your goal and monitoring preferences.
+                        {decomposedTasks ? "Select a sub-task for this session." : "Describe your main objective and let AI create a plan."}
                       </DialogDescription>
                     </DialogHeader>
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="goal-desc">Goal Description (Optional)</Label>
-                        <Input 
-                          id="goal-desc" 
-                          placeholder="e.g., Finish chapter 3 of Math homework"
-                          value={goalDescription}
-                          onChange={(e) => setGoalDescription(e.target.value)}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="goal-duration">Target Duration</Label>
-                        <Slider
-                          id="goal-duration"
-                          min={900}
-                          max={14400}
-                          step={900}
-                          value={[goalDuration]}
-                          onValueChange={(value) => setGoalDuration(value[0])}
-                        />
-                        <div className="text-center text-sm text-muted-foreground">
-                          {formatSliderLabel(goalDuration)}
+
+                    {/* Step 1: Input Goal */}
+                    {!decomposedTasks && !isDecomposing && (
+                      <div className="space-y-4 pt-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="high-level-goal">What's your main objective?</Label>
+                          <Textarea 
+                            id="high-level-goal" 
+                            placeholder="e.g., Prepare for my history final exam"
+                            value={highLevelGoal}
+                            onChange={(e) => setHighLevelGoal(e.target.value)}
+                            rows={3}
+                          />
                         </div>
+                        <Button onClick={handleDecomposeGoal} className="w-full">
+                          <BrainCircuit className="mr-2 h-4 w-4" />
+                          Let AI Plan Your Tasks
+                        </Button>
                       </div>
-                      <Separator />
-                       <div className="space-y-3">
-                         <Label>Monitoring Options</Label>
-                        <div className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
+                    )}
+
+                    {/* Loading State */}
+                    {isDecomposing && (
+                      <div className="flex items-center justify-center h-48">
+                        <Loader className="h-8 w-8 animate-spin" />
+                        <p className="ml-4 text-muted-foreground">AI is planning your tasks...</p>
+                      </div>
+                    )}
+                    
+                    {/* Step 2: Select Task & Configure */}
+                    {decomposedTasks && !isDecomposing && (
+                      <div className="space-y-6 max-h-[70vh] overflow-y-auto pr-2">
+                        <div>
+                          <Label>Select a Task to Focus On</Label>
+                          <RadioGroup 
+                            value={goalDescription} 
+                            onValueChange={setGoalDescription}
+                            className="mt-2 space-y-2"
+                          >
+                            {decomposedTasks.map((task, index) => (
+                              <Label key={index} htmlFor={`task-${index}`} className="flex items-start gap-3 rounded-md border p-3 hover:bg-accent has-[[data-state=checked]]:bg-accent cursor-pointer">
+                                <RadioGroupItem value={task.description} id={`task-${index}`} className="mt-1"/>
+                                <div>
+                                  <p className="font-medium">{task.title}</p>
+                                  <p className="text-sm text-muted-foreground">{task.description}</p>
+                                </div>
+                              </Label>
+                            ))}
+                          </RadioGroup>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="goal-duration">Target Duration</Label>
+                          <Slider
+                            id="goal-duration"
+                            min={900}
+                            max={14400}
+                            step={900}
+                            value={[goalDuration]}
+                            onValueChange={(value) => setGoalDuration(value[0])}
+                          />
+                          <div className="text-center text-sm text-muted-foreground">
+                            {formatSliderLabel(goalDuration)}
+                          </div>
+                        </div>
+
+                        <Separator />
+
+                        <div className="space-y-3">
+                          <Label>Monitoring Options</Label>
+                          <div className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
                             <div className="space-y-0.5">
-                                <Label htmlFor="use-webcam" className="text-sm font-medium">Enable Webcam</Label>
-                                <p className="text-xs text-muted-foreground">
-                                    Required for away detection.
-                                </p>
+                              <Label htmlFor="use-webcam" className="text-sm font-medium">Enable Webcam</Label>
+                              <p className="text-xs text-muted-foreground">
+                                Required for away detection.
+                              </p>
                             </div>
                             <Switch
-                                id="use-webcam"
-                                checked={useWebcam}
-                                onCheckedChange={setUseWebcam}
-                                disabled={isPrivacyShieldActive}
+                              id="use-webcam"
+                              checked={useWebcam}
+                              onCheckedChange={setUseWebcam}
+                              disabled={isPrivacyShieldActive}
                             />
-                        </div>
-                        <div className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
+                          </div>
+                          <div className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
                             <div className="space-y-0.5">
-                                <Label htmlFor="use-screen" className="text-sm font-medium">Enable Screen Analysis</Label>
-                                 <p className="text-xs text-muted-foreground">
-                                    Required for activity categorization.
-                                </p>
+                              <Label htmlFor="use-screen" className="text-sm font-medium">Enable Screen Analysis</Label>
+                              <p className="text-xs text-muted-foreground">
+                                Required for activity categorization.
+                              </p>
                             </div>
                             <Switch
-                                id="use-screen"
-                                checked={useScreen}
-                                onCheckedChange={setUseScreen}
-                                disabled={isPrivacyShieldActive}
+                              id="use-screen"
+                              checked={useScreen}
+                              onCheckedChange={setUseScreen}
+                              disabled={isPrivacyShieldActive}
                             />
-                        </div>
-                        {isPrivacyShieldActive && (
+                          </div>
+                          {isPrivacyShieldActive && (
                             <p className="text-xs text-center text-amber-600 dark:text-amber-500 pt-1">
-                                Disable Privacy Shield in Settings to enable monitoring.
+                              Disable Privacy Shield in Settings to enable monitoring.
                             </p>
-                        )}
+                          )}
+                        </div>
+
+                        <DialogFooter>
+                          <Button onClick={handleStartSession}>
+                            Start Session
+                          </Button>
+                        </DialogFooter>
                       </div>
-                    </div>
-                    <DialogFooter>
-                      <Button onClick={handleStartSession}>
-                        Start Session
-                      </Button>
-                    </DialogFooter>
+                    )}
                   </DialogContent>
                 </Dialog>
               ) : status === 'initializing' ? (
