@@ -41,7 +41,7 @@
   .dark {
     --background: 0 0% 7%;
     --foreground: 210 40% 98%;
-    --card: 0 0% 7%;
+    --card: 240 10% 3.9%;
     --card-foreground: 210 40% 98%;
     --popover: 240 10% 3.9%;
     --popover-foreground: 210 40% 98%;
@@ -85,7 +85,7 @@
     @apply w-full h-full fixed top-0 left-0 -z-10;
   }
   .circle {
-    @apply absolute rounded-full mix-blend-soft-light filter blur-2xl;
+    @apply absolute rounded-full filter blur-2xl;
     animation: morph 20s ease-in-out infinite alternate;
   }
   .circle-1 {
@@ -101,7 +101,7 @@
     animation-delay: 5s;
   }
   .circle-3 {
-    @apply w-64 h-64 bg-secondary/40 dark:bg-secondary/30;
+    @apply w-64 h-64 bg-secondary/40;
     top: 80%; left: 20%;
     animation-duration: 20s;
     animation-delay: 10s;
