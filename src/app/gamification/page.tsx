@@ -116,7 +116,7 @@ export default function GamificationPage() {
             <Button asChild>
               <Link href="/logs">
                 <BookOpen className="mr-2 h-4 w-4" />
-                View Monthly Logs
+                View Monthly Achievement Logs
               </Link>
             </Button>
           </div>

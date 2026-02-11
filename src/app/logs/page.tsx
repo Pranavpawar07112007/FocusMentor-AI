@@ -91,9 +91,9 @@ export default function MonthlyLogsPage() {
           <CardHeader>
             <div className="flex flex-wrap justify-between items-center gap-4">
               <div>
-                <CardTitle>Monthly Activity Logs</CardTitle>
+                <CardTitle>Monthly Achievement Logs</CardTitle>
                 <CardDescription>
-                  All your recorded activities for the current month.
+                  All your recorded activities for the current month that contribute to your achievements.
                 </CardDescription>
               </div>
               <Button asChild variant="outline">
