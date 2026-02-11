@@ -1,29 +1,17 @@
 'use client';
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Shield, Loader, Play, Square, Goal as GoalIcon, Settings, History, LayoutDashboard, Award } from 'lucide-react';
+import { Loader, Play, Square, Goal as GoalIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import FocusRing from '@/components/app/focus-ring';
 import StatsDashboard from '@/components/app/stats-dashboard';
 import { useFocusSession } from '@/lib/hooks/use-focus-session';
 import { useFirebase } from '@/firebase';
-import { initiateSignOut } from '@/firebase/non-blocking-login';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { ThemeToggle } from '@/components/app/theme-toggle';
+import { AppHeader } from '@/components/app/app-header';
 import {
   Dialog,
   DialogContent,
@@ -32,15 +20,12 @@ import {
   DialogDescription,
   DialogFooter,
   DialogTrigger,
-  DialogClose,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
 import { Progress } from '@/components/ui/progress';
-import { LogOut } from 'lucide-react';
 
 export default function Home() {
-  const [privacyShield, setPrivacyShield] = useState(false);
   const webcamVideoRef = useRef<HTMLVideoElement>(null);
   const screenVideoRef = useRef<HTMLVideoElement>(null);
   const { toast } = useToast();
@@ -50,7 +35,10 @@ export default function Home() {
   const [goalDescription, setGoalDescription] = useState('');
   const [goalDuration, setGoalDuration] = useState(3600);
 
-  const { user, auth, isUserLoading } = useFirebase();
+  const { user, isUserLoading } = useFirebase();
+
+  // Defer enabling session until user is loaded
+  const isSessionHookEnabled = !isUserLoading && !!user;
 
   const {
     status,
@@ -62,8 +50,9 @@ export default function Home() {
     sessionSummary,
     goal,
     goalProgress,
+    isPrivacyShieldActive
   } = useFocusSession({
-    enabled: !privacyShield && !!user,
+    enabled: isSessionHookEnabled,
     webcamVideoRef,
     screenVideoRef,
   });
@@ -75,6 +64,14 @@ export default function Home() {
   }, [user, isUserLoading, router]);
 
   const handleStartSession = useCallback(async () => {
+    if (isPrivacyShieldActive) {
+        toast({
+            variant: 'destructive',
+            title: 'Privacy Shield is On',
+            description: 'Please turn off the Privacy Shield in Settings to start a session.',
+        });
+        return;
+    }
     const goalToSet = {
       description: goalDescription || 'Complete a focused study session.',
       targetDuration: goalDuration,
@@ -82,7 +79,7 @@ export default function Home() {
     await startSession(goalToSet);
     setIsGoalDialogOpen(false);
     setGoalDescription('');
-  }, [startSession, goalDescription, goalDuration]);
+  }, [startSession, goalDescription, goalDuration, isPrivacyShieldActive, toast]);
 
   const handleEndSession = useCallback(async () => {
     const endedSessionId = await endSession();
@@ -90,13 +87,6 @@ export default function Home() {
       router.push(`/history/${endedSessionId}`);
     }
   }, [endSession, router]);
-
-  const handleSignOut = () => {
-    if (auth) {
-      initiateSignOut(auth);
-      router.push('/login');
-    }
-  };
 
   const glassmorphismStyle =
     'bg-card/30 backdrop-blur-lg border border-border/50 shadow-lg';
@@ -118,97 +108,25 @@ export default function Home() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background font-body text-foreground">
-      <header className="fixed top-4 left-4 right-4 z-50 flex h-16 items-center justify-between rounded-lg border border-border/20 bg-background/80 px-6 backdrop-blur-lg">
-        <h1 className="text-xl font-bold text-primary font-headline">
-          FocusMentor AI
-        </h1>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center space-x-2">
-            <Shield className="text-accent" />
-            <Label htmlFor="privacy-shield">Privacy Shield</Label>
-            <Switch
-              id="privacy-shield"
-              checked={privacyShield}
-              onCheckedChange={setPrivacyShield}
-              aria-label="Privacy Shield"
-            />
-          </div>
-          
-          <Button variant="ghost" asChild>
-            <Link href="/history">
-              <History className="h-4 w-4" />
-              <span className="ml-2 hidden sm:inline">History</span>
-            </Link>
+      <AppHeader activePage="focus">
+        {(status === 'running' || status === 'paused') && (
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={handleEndSession}
+            className="hidden sm:inline-flex"
+          >
+            <Square className="mr-2 h-4 w-4" /> End Session
           </Button>
-          <Button variant="ghost" asChild>
-            <Link href="/dashboard">
-              <LayoutDashboard className="h-4 w-4" />
-              <span className="ml-2 hidden sm:inline">Dashboard</span>
-            </Link>
-          </Button>
-          <Button variant="ghost" asChild>
-            <Link href="/gamification">
-              <Award className="h-4 w-4" />
-              <span className="ml-2 hidden sm:inline">Achievements</span>
-            </Link>
-          </Button>
-
-          <ThemeToggle />
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                <Avatar className="h-8 w-8">
-                  <AvatarImage
-                    src={user.photoURL ?? ''}
-                    alt={user.displayName ?? 'U'}
-                  />
-                  <AvatarFallback>
-                    {user.email ? user.email[0].toUpperCase() : 'U'}
-                  </AvatarFallback>
-                </Avatar>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>
-                <p>Signed in as</p>
-                <p className="text-sm font-normal text-muted-foreground">
-                  {user.email}
-                </p>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link href="/settings">
-                  <Settings className="mr-2 h-4 w-4" />
-                  <span>Settings</span>
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleSignOut}>
-                <LogOut className="mr-2 h-4 w-4" />
-                <span>Sign Out</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {(status === 'running' || status === 'paused') && (
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={handleEndSession}
-            >
-              <Square className="mr-2 h-4 w-4" /> End Session
-            </Button>
-          )}
-        </div>
-      </header>
+        )}
+      </AppHeader>
 
       <main className="mx-auto w-full max-w-7xl flex-grow px-4 pt-24 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
           <div
-            className={`flex flex-col items-center justify-center rounded-lg p-6 lg:col-span-2 ${glassmorphismStyle}`}
+            className={`flex flex-col items-center justify-center rounded-lg p-4 sm:p-6 md:col-span-2 ${glassmorphismStyle}`}
           >
-            <div className="grid w-full grid-cols-1 items-center gap-8 md:grid-cols-2">
+            <div className="grid w-full grid-cols-1 items-center gap-4 sm:gap-8 lg:grid-cols-2">
               <div className="relative flex flex-col items-center justify-center">
                 <FocusRing
                   time={time}
@@ -343,7 +261,7 @@ export default function Home() {
             )}
           </div>
 
-          <div className={`flex flex-col rounded-lg p-6 ${glassmorphismStyle}`}>
+          <div className={`flex flex-col rounded-lg p-4 sm:p-6 ${glassmorphismStyle}`}>
             <StatsDashboard logs={logs} />
           </div>
         </div>

@@ -35,9 +35,17 @@ export function useFocusSession({
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [sessionSummary, setSessionSummary] = useState<string | null>(null);
   const [goal, setGoal] = useState<Goal | null>(null);
+  const [isPrivacyShieldActive, setIsPrivacyShieldActive] = useState(true);
 
   const { toast } = useToast();
   const { firestore, user } = useFirebase();
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const shieldStatus = localStorage.getItem('privacyShield') === 'true';
+      setIsPrivacyShieldActive(shieldStatus);
+    }
+  }, []);
 
   const customCategoriesQuery = useMemoFirebase(() => {
     if (!user || !firestore) return null;
@@ -260,7 +268,7 @@ export function useFocusSession({
   }, [toast]);
   
   const startSession = useCallback(async (goalInput?: { description: string; targetDuration?: number }) => {
-    if (!enabled) {
+    if (!enabled || isPrivacyShieldActive) {
       toast({ title: 'Privacy Shield is on or you are not logged in.', description: 'Please disable it and log in to start a session.' });
       return;
     }
@@ -334,7 +342,7 @@ export function useFocusSession({
       cleanup();
       setStatus('idle');
     }
-  }, [enabled, toast, cleanup, runScreenAudit, initializeMediaPipe, webcamVideoRef, screenVideoRef, firestore, user]);
+  }, [enabled, isPrivacyShieldActive, toast, cleanup, runScreenAudit, initializeMediaPipe, webcamVideoRef, screenVideoRef, firestore, user]);
 
   const endSession = useCallback(async (): Promise<string | null> => {
     if (!sessionId || !user || !firestore) return null;
@@ -388,5 +396,5 @@ export function useFocusSession({
   
   const goalProgress = goal?.targetDuration ? Math.min((time / goal.targetDuration) * 100, 100) : 0;
 
-  return { status, time, logs, startSession, endSession, focusState, sessionSummary, goal, goalProgress };
+  return { status, time, logs, startSession, endSession, focusState, sessionSummary, goal, goalProgress, isPrivacyShieldActive };
 }

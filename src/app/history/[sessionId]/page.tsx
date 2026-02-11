@@ -4,27 +4,17 @@ import { useParams, useRouter } from 'next/navigation';
 import { useFirebase, useDoc, useMemoFirebase, WithId } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import { StudySession } from '@/types';
-import { Loader, ArrowLeft, Settings, LogOut } from 'lucide-react';
+import { Loader, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SessionReport } from '@/components/app/session-report';
 import Link from 'next/link';
-import { ThemeToggle } from '@/components/app/theme-toggle';
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuItem } from '@/components/ui/dropdown-menu';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { initiateSignOut } from '@/firebase/non-blocking-login';
+import { AppHeader } from '@/components/app/app-header';
 
 export default function SessionReportPage() {
   const params = useParams();
   const sessionId = params.sessionId as string;
-  const { user, auth, firestore, isUserLoading } = useFirebase();
+  const { user, firestore, isUserLoading } = useFirebase();
   const router = useRouter();
-
-  const handleSignOut = () => {
-    if (auth) {
-      initiateSignOut(auth);
-      router.push('/login');
-    }
-  };
 
   const sessionRef = useMemoFirebase(() => {
     if (!user || !firestore || !sessionId) return null;
@@ -61,61 +51,7 @@ export default function SessionReportPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
-      <header className="fixed top-4 left-4 right-4 z-40 flex h-16 items-center justify-between rounded-lg border border-border/20 bg-background/80 px-6 backdrop-blur-lg">
-        <h1 className="text-xl font-bold text-primary font-headline">
-          <Link href="/">FocusMentor AI</Link>
-        </h1>
-        <div className="flex items-center gap-4">
-          <Button asChild variant="ghost">
-            <Link href="/">Focus</Link>
-          </Button>
-          <Button asChild variant="ghost">
-            <Link href="/history">History</Link>
-          </Button>
-          <Button asChild variant="ghost">
-            <Link href="/dashboard">Dashboard</Link>
-          </Button>
-          <Button asChild variant="ghost">
-            <Link href="/gamification">Achievements</Link>
-          </Button>
-          <ThemeToggle />
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                <Avatar className="h-8 w-8">
-                  <AvatarImage
-                    src={user.photoURL ?? ''}
-                    alt={user.displayName ?? 'U'}
-                  />
-                  <AvatarFallback>
-                    {user.email ? user.email[0].toUpperCase() : 'U'}
-                  </AvatarFallback>
-                </Avatar>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>
-                <p>Signed in as</p>
-                <p className="text-sm font-normal text-muted-foreground">
-                  {user.email}
-                </p>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link href="/settings">
-                  <Settings className="mr-2 h-4 w-4" />
-                  <span>Settings</span>
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleSignOut}>
-                <LogOut className="mr-2 h-4 w-4" />
-                <span>Sign Out</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </header>
+      <AppHeader activePage="history" />
       <main className="container mx-auto max-w-5xl flex-grow px-4 pt-24 sm:px-6 lg:px-8">
         <SessionReport session={session as WithId<StudySession>} />
       </main>

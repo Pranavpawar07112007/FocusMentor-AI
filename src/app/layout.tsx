@@ -4,6 +4,7 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { ThemeProvider } from '@/components/app/theme-provider';
+import { AnimatedBackground } from '@/components/app/animated-background';
 
 export const metadata: Metadata = {
   title: 'FocusMentor AI',
@@ -25,7 +26,10 @@ export default function RootLayout({
       <body className={cn("font-body antialiased")}>
         <ThemeProvider>
           <FirebaseClientProvider>
-            {children}
+            <AnimatedBackground />
+            <div className="relative z-10">
+              {children}
+            </div>
             <Toaster />
           </FirebaseClientProvider>
         </ThemeProvider>
