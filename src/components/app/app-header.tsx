@@ -20,6 +20,8 @@ import {
   SheetContent,
   SheetTrigger,
   SheetClose,
+  SheetHeader,
+  SheetTitle,
 } from '@/components/ui/sheet';
 import { initiateSignOut } from '@/firebase/non-blocking-login';
 import { cn } from '@/lib/utils';
@@ -71,6 +73,9 @@ export function AppHeader({ activePage, children }: AppHeaderProps) {
               </Button>
             </SheetTrigger>
             <SheetContent side="left">
+              <SheetHeader>
+                <SheetTitle className="sr-only">Menu</SheetTitle>
+              </SheetHeader>
               <nav className="flex flex-col gap-4 mt-8">
                 {navLinks.map((link) => (
                   <SheetClose key={link.href} asChild>
