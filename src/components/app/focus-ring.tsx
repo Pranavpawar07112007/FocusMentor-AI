@@ -71,7 +71,7 @@ const FocusRing: React.FC<FocusRingProps> = ({ time, status, focusState }) => {
         />
       </svg>
       <div className="absolute flex flex-col items-center justify-center">
-        <span className="text-5xl font-bold font-mono tracking-tighter text-foreground">
+        <span className="text-4xl font-bold font-mono tracking-tighter text-foreground">
           {formatTime(time)}
         </span>
         <span className="text-lg font-medium text-muted-foreground mt-2">
