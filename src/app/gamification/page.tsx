@@ -4,19 +4,20 @@ import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { Loader, Award, Star, Zap, Moon, BookOpen } from 'lucide-react';
+import { Loader, BookOpen } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { AppHeader } from '@/components/app/app-header';
 import { Button } from '@/components/ui/button';
 import { collection, query, where } from 'firebase/firestore';
-import { startOfMonth, endOfMonth, getHours, startOfDay } from 'date-fns';
+import { startOfMonth, endOfMonth } from 'date-fns';
 import { StudySession } from '@/types';
+import { calculateAchievements, DisplayAchievement } from '@/lib/achievements';
 
 export default function GamificationPage() {
   const { user, isUserLoading, firestore } = useFirebase();
   const router = useRouter();
 
-  const [achievements, setAchievements] = useState<any[]>([]);
+  const [achievements, setAchievements] = useState<DisplayAchievement[]>([]);
   const [isLoadingAchievements, setIsLoadingAchievements] = useState(true);
 
   const currentMonthRange = useMemo(() => {
@@ -39,50 +40,12 @@ export default function GamificationPage() {
   const { data: monthlySessions, isLoading: isLoadingSessions } = useCollection<StudySession>(monthlySessionsQuery);
 
   useEffect(() => {
-    if (isLoadingSessions || !monthlySessions) {
+    if (isLoadingSessions) {
         setIsLoadingAchievements(true);
         return;
     };
     
-    const marathonRunner = monthlySessions.some(s => s.totalFocusTime >= 7200); // 2 hours
-    const distractionAvoider = monthlySessions.some(s => s.logs.every(l => l.category !== 'Distraction'));
-    const nightOwl = monthlySessions.some(s => s.startTime && getHours(s.startTime.toDate()) >= 0 && getHours(s.startTime.toDate()) < 4);
-
-    const totalFocus = monthlySessions.reduce((acc, s) => acc + s.totalFocusTime, 0) / 3600; // in hours
-
-    const focusLevels = [
-      { title: 'Focus Apprentice', description: 'Log 5 hours of focus this month.', achieved: totalFocus >= 5, icon: <Award className="h-8 w-8 text-yellow-500" /> },
-      { title: 'Focus Journeyman', description: 'Log 15 hours of focus this month.', achieved: totalFocus >= 15, icon: <Award className="h-8 w-8 text-blue-500" /> },
-      { title: 'Focus Master', description: 'Log 30 hours of focus this month.', achieved: totalFocus >= 30, icon: <Award className="h-8 w-8 text-purple-500" /> },
-    ];
-    
-    const uniqueDays = [...new Set(monthlySessions.map(s => startOfDay(s.startTime.toDate()).getTime()))]
-        .sort()
-        .map(t => new Date(t));
-
-    let maxStreak = 0;
-    if (uniqueDays.length > 0) {
-        maxStreak = 1;
-        let currentStreak = 1;
-        for (let i = 1; i < uniqueDays.length; i++) {
-            const dayBefore = new Date(uniqueDays[i]);
-            dayBefore.setDate(dayBefore.getDate() - 1);
-            if (dayBefore.getTime() === uniqueDays[i-1].getTime()) {
-                currentStreak++;
-            } else {
-                currentStreak = 1;
-            }
-            maxStreak = Math.max(maxStreak, currentStreak);
-        }
-    }
-
-    const calculatedAchievements = [
-      ...focusLevels,
-      { icon: <Zap className="h-8 w-8 text-red-500" />, title: 'Marathon Runner', description: 'Complete a session longer than 2 hours.', achieved: marathonRunner },
-      { icon: <Star className="h-8 w-8 text-green-500" />, title: 'Distraction Avoider', description: 'Finish a session with zero distractions.', achieved: distractionAvoider },
-      { icon: <Moon className="h-8 w-8 text-indigo-500" />, title: 'Night Owl', description: 'Study past midnight.', achieved: nightOwl },
-      { icon: <Star className="h-8 w-8 text-orange-500" />, title: 'Focus Streak: 3 Days', description: 'Complete sessions on 3 consecutive days.', achieved: maxStreak >= 3 },
-    ];
+    const calculatedAchievements = calculateAchievements(monthlySessions);
     setAchievements(calculatedAchievements);
     setIsLoadingAchievements(false);
     
@@ -125,8 +88,8 @@ export default function GamificationPage() {
           </div>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {achievements.map((achievement, index) => (
-            <Card key={index} className={`${glassmorphismStyle} ${achievement.achieved ? '' : 'opacity-50'}`}>
+          {achievements.map((achievement) => (
+            <Card key={achievement.id} className={`${glassmorphismStyle} ${achievement.achieved ? '' : 'opacity-50'}`}>
               <CardHeader className="flex flex-row items-center gap-4 space-y-0 pb-2">
                 {achievement.icon}
                 <CardTitle className="text-lg">{achievement.title}</CardTitle>

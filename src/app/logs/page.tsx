@@ -10,14 +10,15 @@ import {
   CardTitle,
   CardDescription,
 } from '@/components/ui/card';
-import { format, startOfMonth, endOfMonth, getHours, startOfDay } from 'date-fns';
-import { Loader, Award, Star, Zap, Moon, ArrowLeft } from 'lucide-react';
+import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { Loader, ArrowLeft } from 'lucide-react';
 import { AppHeader } from '@/components/app/app-header';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useEffect, useMemo, useState } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { calculateAchievements, DisplayAchievement } from '@/lib/achievements';
 
 
 export default function MonthlyAchievementLogsPage() {
@@ -25,7 +26,7 @@ export default function MonthlyAchievementLogsPage() {
   const router = useRouter();
 
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [achievements, setAchievements] = useState<any[]>([]);
+  const [achievements, setAchievements] = useState<DisplayAchievement[]>([]);
   const [isLoadingAchievements, setIsLoadingAchievements] = useState(true);
 
   const selectedMonthRange = useMemo(() => {
@@ -47,55 +48,12 @@ export default function MonthlyAchievementLogsPage() {
   const { data: sessions, isLoading: isLoadingSessions } = useCollection<StudySession>(sessionsQuery);
 
   useEffect(() => {
-    if (isLoadingSessions || !sessions) {
-        if (!isLoadingSessions) {
-          setAchievements([]);
-          setIsLoadingAchievements(false);
-        } else {
-          setIsLoadingAchievements(true);
-        }
+    if (isLoadingSessions) {
+        setIsLoadingAchievements(true);
         return;
     };
     
-    const marathonRunner = sessions.some(s => s.totalFocusTime >= 7200); // 2 hours
-    const distractionAvoider = sessions.some(s => s.logs.every(l => l.category !== 'Distraction'));
-    const nightOwl = sessions.some(s => s.startTime && getHours(s.startTime.toDate()) >= 0 && getHours(s.startTime.toDate()) < 4);
-
-    const totalFocus = sessions.reduce((acc, s) => acc + s.totalFocusTime, 0) / 3600; // in hours
-
-    const focusLevels = [
-      { title: 'Focus Apprentice', description: 'Log 5 hours of focus this month.', achieved: totalFocus >= 5, icon: <Award className="h-8 w-8 text-yellow-500" /> },
-      { title: 'Focus Journeyman', description: 'Log 15 hours of focus this month.', achieved: totalFocus >= 15, icon: <Award className="h-8 w-8 text-blue-500" /> },
-      { title: 'Focus Master', description: 'Log 30 hours of focus this month.', achieved: totalFocus >= 30, icon: <Award className="h-8 w-8 text-purple-500" /> },
-    ];
-    
-    const uniqueDays = [...new Set(sessions.map(s => startOfDay(s.startTime.toDate()).getTime()))]
-        .sort()
-        .map(t => new Date(t));
-
-    let maxStreak = 0;
-    if (uniqueDays.length > 0) {
-        maxStreak = 1;
-        let currentStreak = 1;
-        for (let i = 1; i < uniqueDays.length; i++) {
-            const dayBefore = new Date(uniqueDays[i]);
-            dayBefore.setDate(dayBefore.getDate() - 1);
-            if (dayBefore.getTime() === uniqueDays[i-1].getTime()) {
-                currentStreak++;
-            } else {
-                currentStreak = 1;
-            }
-            maxStreak = Math.max(maxStreak, currentStreak);
-        }
-    }
-
-    const calculatedAchievements = [
-      ...focusLevels,
-      { icon: <Zap className="h-8 w-8 text-red-500" />, title: 'Marathon Runner', description: 'Complete a session longer than 2 hours.', achieved: marathonRunner },
-      { icon: <Star className="h-8 w-8 text-green-500" />, title: 'Distraction Avoider', description: 'Finish a session with zero distractions.', achieved: distractionAvoider },
-      { icon: <Moon className="h-8 w-8 text-indigo-500" />, title: 'Night Owl', description: 'Study past midnight.', achieved: nightOwl },
-      { icon: <Star className="h-8 w-8 text-orange-500" />, title: 'Focus Streak: 3 Days', description: 'Complete sessions on 3 consecutive days.', achieved: maxStreak >= 3 },
-    ];
+    const calculatedAchievements = calculateAchievements(sessions);
     setAchievements(calculatedAchievements.filter(a => a.achieved));
     setIsLoadingAchievements(false);
     
@@ -188,8 +146,8 @@ export default function MonthlyAchievementLogsPage() {
                 <Loader className="h-8 w-8 animate-spin" />
              ) : achievements.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
-                {achievements.map((achievement, index) => (
-                    <Card key={index} className={`${glassmorphismStyle}`}>
+                {achievements.map((achievement) => (
+                    <Card key={achievement.id} className={`${glassmorphismStyle}`}>
                     <CardHeader className="flex flex-row items-center gap-4 space-y-0 pb-2">
                         {achievement.icon}
                         <CardTitle className="text-lg">{achievement.title}</CardTitle>
