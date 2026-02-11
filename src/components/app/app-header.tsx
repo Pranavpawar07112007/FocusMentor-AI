@@ -5,7 +5,15 @@ import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/app/theme-toggle';
 import { useFirebase } from '@/firebase';
 import { useRouter } from 'next/navigation';
-import { Settings, LogOut, Menu, History, LayoutDashboard, Award, Crosshair } from 'lucide-react';
+import {
+  Settings,
+  LogOut,
+  Menu,
+  History,
+  LayoutDashboard,
+  Award,
+  Crosshair,
+} from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -25,7 +33,7 @@ import {
 } from '@/components/ui/sheet';
 import { initiateSignOut } from '@/firebase/non-blocking-login';
 import { cn } from '@/lib/utils';
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 type NavLink = {
   href: string;
@@ -35,10 +43,30 @@ type NavLink = {
 };
 
 const navLinks: NavLink[] = [
-  { href: '/', label: 'Focus', icon: <Crosshair className="h-4 w-4" />, pageId: 'focus' },
-  { href: '/history', label: 'History', icon: <History className="h-4 w-4" />, pageId: 'history' },
-  { href: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard className="h-4 w-4" />, pageId: 'dashboard' },
-  { href: '/gamification', label: 'Achievements', icon: <Award className="h-4 w-4" />, pageId: 'achievements' },
+  {
+    href: '/',
+    label: 'Focus',
+    icon: <Crosshair className="h-4 w-4" />,
+    pageId: 'focus',
+  },
+  {
+    href: '/history',
+    label: 'History',
+    icon: <History className="h-4 w-4" />,
+    pageId: 'history',
+  },
+  {
+    href: '/dashboard',
+    label: 'Dashboard',
+    icon: <LayoutDashboard className="h-4 w-4" />,
+    pageId: 'dashboard',
+  },
+  {
+    href: '/gamification',
+    label: 'Achievements',
+    icon: <Award className="h-4 w-4" />,
+    pageId: 'achievements',
+  },
 ];
 
 type AppHeaderProps = {
@@ -49,6 +77,23 @@ type AppHeaderProps = {
 export function AppHeader({ activePage, children }: AppHeaderProps) {
   const { user, auth } = useFirebase();
   const router = useRouter();
+  const [isHeaderHidden, setHeaderHidden] = useState(false);
+  const lastScrollY = useRef(0);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      if (currentScrollY > 100 && currentScrollY > lastScrollY.current) {
+        setHeaderHidden(true);
+      } else {
+        setHeaderHidden(false);
+      }
+      lastScrollY.current = currentScrollY;
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const handleSignOut = () => {
     if (auth) {
@@ -62,7 +107,12 @@ export function AppHeader({ activePage, children }: AppHeaderProps) {
   }
 
   return (
-    <header className="fixed top-4 left-4 right-4 z-50 flex h-16 items-center justify-between rounded-lg border border-border/20 bg-background/80 px-4 sm:px-6 backdrop-blur-lg">
+    <header
+      className={cn(
+        'fixed top-0 left-0 right-0 z-50 flex h-16 items-center justify-between border-b border-border/20 bg-background/80 px-4 backdrop-blur-lg transition-transform duration-300 sm:px-6',
+        { '-translate-y-full': isHeaderHidden }
+      )}
+    >
       <div className="flex items-center gap-2 sm:gap-4">
         <div className="md:hidden">
           <Sheet>
@@ -76,7 +126,7 @@ export function AppHeader({ activePage, children }: AppHeaderProps) {
               <SheetHeader>
                 <SheetTitle className="sr-only">Menu</SheetTitle>
               </SheetHeader>
-              <nav className="flex flex-col gap-4 mt-8">
+              <nav className="mt-8 flex flex-col gap-4">
                 {navLinks.map((link) => (
                   <SheetClose key={link.href} asChild>
                     <Link
@@ -95,10 +145,10 @@ export function AppHeader({ activePage, children }: AppHeaderProps) {
             </SheetContent>
           </Sheet>
         </div>
-        <h1 className="text-lg sm:text-xl font-bold text-primary font-headline">
+        <h1 className="font-headline text-lg font-bold text-primary sm:text-xl">
           <Link href="/">FocusMentor AI</Link>
         </h1>
-        <nav className="hidden md:flex items-center gap-1">
+        <nav className="hidden items-center gap-1 md:flex">
           {navLinks.map((link) => (
             <Button
               key={link.href}
@@ -117,7 +167,7 @@ export function AppHeader({ activePage, children }: AppHeaderProps) {
 
       <div className="flex items-center gap-2 sm:gap-4">
         {children}
-        
+
         <ThemeToggle />
 
         <DropdownMenu>
@@ -158,7 +208,6 @@ export function AppHeader({ activePage, children }: AppHeaderProps) {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-
       </div>
     </header>
   );

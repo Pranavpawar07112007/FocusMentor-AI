@@ -39,11 +39,11 @@
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
   .dark {
-    --background: 222.2 84% 4.9%;
+    --background: 240 10% 3.9%;
     --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
+    --card: 240 10% 3.9%;
     --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
+    --popover: 240 10% 3.9%;
     --popover-foreground: 210 40% 98%;
     --primary: 217.2 91.2% 59.8%;
     --primary-foreground: 222.2 47.4% 11.2%;
@@ -86,28 +86,28 @@
   }
   .circle {
     @apply absolute rounded-full mix-blend-soft-light filter blur-2xl;
-    animation: morph 20s linear infinite alternate;
+    animation: morph 20s ease-in-out infinite alternate;
   }
   .circle-1 {
-    @apply w-72 h-72 bg-primary/20;
+    @apply w-72 h-72 bg-primary/30;
     top: 10%; left: 10%;
     animation-duration: 25s;
     animation-delay: 0s;
   }
   .circle-2 {
-    @apply w-96 h-96 bg-accent/20;
+    @apply w-96 h-96 bg-accent/30;
     top: 50%; left: 70%;
     animation-duration: 30s;
     animation-delay: 5s;
   }
   .circle-3 {
-    @apply w-64 h-64 bg-secondary/30 dark:bg-secondary/20;
+    @apply w-64 h-64 bg-secondary/40 dark:bg-secondary/30;
     top: 80%; left: 20%;
     animation-duration: 20s;
     animation-delay: 10s;
   }
    .circle-4 {
-    @apply w-80 h-80 bg-primary/10;
+    @apply w-80 h-80 bg-primary/20;
     top: 30%; left: 50%;
     animation-duration: 35s;
     animation-delay: 2s;
