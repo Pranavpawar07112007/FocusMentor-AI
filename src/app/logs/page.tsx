@@ -11,15 +11,13 @@ import {
   CardDescription,
 } from '@/components/ui/card';
 import { format, startOfMonth, endOfMonth, getHours, startOfDay } from 'date-fns';
-import { Loader, Award, Star, Zap, Moon, ArrowLeft, Calendar as CalendarIcon } from 'lucide-react';
+import { Loader, Award, Star, Zap, Moon, ArrowLeft } from 'lucide-react';
 import { AppHeader } from '@/components/app/app-header';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useEffect, useMemo, useState } from 'react';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
-import { cn } from '@/lib/utils';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 
 export default function MonthlyAchievementLogsPage() {
@@ -134,29 +132,45 @@ export default function MonthlyAchievementLogsPage() {
                 </CardDescription>
               </div>
               <div className="flex items-center gap-2">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant={'outline'}
-                      className={cn(
-                        'w-full sm:w-[200px] justify-start text-left font-normal'
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {format(selectedDate, 'MMMM yyyy')}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      month={selectedDate}
-                      onMonthChange={setSelectedDate}
-                      classNames={{
-                        table: "hidden",
-                      }}
-                    />
-                  </PopoverContent>
-                </Popover>
+                <Select
+                  value={String(selectedDate.getMonth())}
+                  onValueChange={(value) => {
+                    const newDate = new Date(selectedDate.getFullYear(), parseInt(value, 10), 1);
+                    setSelectedDate(newDate);
+                  }}
+                >
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue placeholder="Month" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 12 }).map((_, i) => (
+                      <SelectItem key={i} value={String(i)}>
+                        {format(new Date(2000, i, 1), 'MMMM')}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={String(selectedDate.getFullYear())}
+                  onValueChange={(value) => {
+                    const newDate = new Date(parseInt(value, 10), selectedDate.getMonth(), 1);
+                    setSelectedDate(newDate);
+                  }}
+                >
+                  <SelectTrigger className="w-[100px]">
+                    <SelectValue placeholder="Year" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 5 }).map((_, i) => {
+                      const year = new Date().getFullYear() - i;
+                      return (
+                        <SelectItem key={year} value={String(year)}>
+                          {year}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
                 <Button asChild variant="outline">
                   <Link href="/gamification">
                     <ArrowLeft className="mr-2 h-4 w-4" />
