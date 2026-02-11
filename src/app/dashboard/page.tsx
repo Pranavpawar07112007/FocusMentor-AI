@@ -7,6 +7,7 @@ import { Loader } from 'lucide-react';
 import { AppHeader } from '@/components/app/app-header';
 import { HistoricalTrendsChart } from '@/components/app/historical-trends-chart';
 import { ProductivityByHourChart } from '@/components/app/productivity-by-hour-chart';
+import { AiInsights } from '@/components/app/ai-insights';
 
 export default function DashboardPage() {
   const { user, isUserLoading } = useFirebase();
@@ -43,6 +44,7 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
           <HistoricalTrendsChart />
           <ProductivityByHourChart />
+          <AiInsights />
         </div>
       </main>
     </div>
