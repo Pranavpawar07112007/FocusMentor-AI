@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { AppHeader } from '@/components/app/app-header';
 import { Button } from '@/components/ui/button';
 import { collection, query, where } from 'firebase/firestore';
-import { startOfMonth, endOfMonth, getHours } from 'date-fns';
+import { startOfMonth, endOfMonth, getHours, startOfDay } from 'date-fns';
 import { StudySession } from '@/types';
 
 export default function GamificationPage() {
@@ -56,20 +56,23 @@ export default function GamificationPage() {
       { title: 'Focus Master', description: 'Log 30 hours of focus this month.', achieved: totalFocus >= 30, icon: <Award className="h-8 w-8 text-purple-500" /> },
     ];
     
-    const sessionDays = [...new Set(monthlySessions.map(s => s.startTime.toDate().getDate()))].sort((a, b) => a - b);
+    const uniqueDays = [...new Set(monthlySessions.map(s => startOfDay(s.startTime.toDate()).getTime()))]
+        .sort()
+        .map(t => new Date(t));
+
     let maxStreak = 0;
-    if (sessionDays.length > 0) {
+    if (uniqueDays.length > 0) {
         maxStreak = 1;
         let currentStreak = 1;
-        for (let i = 1; i < sessionDays.length; i++) {
-            if (sessionDays[i] === sessionDays[i-1] + 1) {
+        for (let i = 1; i < uniqueDays.length; i++) {
+            const dayBefore = new Date(uniqueDays[i]);
+            dayBefore.setDate(dayBefore.getDate() - 1);
+            if (dayBefore.getTime() === uniqueDays[i-1].getTime()) {
                 currentStreak++;
             } else {
                 currentStreak = 1;
             }
-            if (currentStreak > maxStreak) {
-                maxStreak = currentStreak;
-            }
+            maxStreak = Math.max(maxStreak, currentStreak);
         }
     }
 

@@ -1,8 +1,8 @@
 'use client';
 
-import { useFirebase, useCollection, useMemoFirebase, WithId } from '@/firebase';
-import { collection, query, orderBy, where } from 'firebase/firestore';
-import { StudySession, LogEntry } from '@/types';
+import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, where } from 'firebase/firestore';
+import { StudySession } from '@/types';
 import {
   Card,
   CardContent,
@@ -10,53 +10,98 @@ import {
   CardTitle,
   CardDescription,
 } from '@/components/ui/card';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { format, formatDistanceToNow, startOfMonth, endOfMonth } from 'date-fns';
-import { Loader, Code, Sigma, Library, Coffee, UserMinus, FileQuestion, ArrowLeft } from 'lucide-react';
+import { format, startOfMonth, endOfMonth, getHours, startOfDay } from 'date-fns';
+import { Loader, Award, Star, Zap, Moon, ArrowLeft, Calendar as CalendarIcon } from 'lucide-react';
 import { AppHeader } from '@/components/app/app-header';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { cn } from '@/lib/utils';
 
 
-const categoryIcons: Record<string, React.ReactNode> = {
-  'Coding': <Code className="h-4 w-4 text-blue-400" />,
-  'Mathematics': <Sigma className="h-4 w-4 text-purple-400" />,
-  'Academic Research': <Library className="h-4 w-4 text-green-400" />,
-  'Distraction': <Coffee className="h-4 w-4 text-red-400" />,
-  'Away': <UserMinus className="h-4 w-4 text-amber-400" />,
-};
-
-export default function MonthlyLogsPage() {
+export default function MonthlyAchievementLogsPage() {
   const { user, firestore, isUserLoading } = useFirebase();
   const router = useRouter();
 
-  const currentMonthRange = useMemo(() => {
-    const now = new Date();
-    return {
-      start: startOfMonth(now),
-      end: endOfMonth(now),
-    };
-  }, []);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [achievements, setAchievements] = useState<any[]>([]);
+  const [isLoadingAchievements, setIsLoadingAchievements] = useState(true);
+
+  const selectedMonthRange = useMemo(() => {
+    const start = startOfMonth(selectedDate);
+    const end = endOfMonth(selectedDate);
+    return { start, end };
+  }, [selectedDate]);
 
   const sessionsQuery = useMemoFirebase(() => {
     if (!user || !firestore) return null;
     
     return query(
       collection(firestore, 'users', user.uid, 'study_sessions'),
-      where('startTime', '>=', currentMonthRange.start),
-      where('startTime', '<=', currentMonthRange.end),
-      orderBy('startTime', 'desc')
+      where('startTime', '>=', selectedMonthRange.start),
+      where('startTime', '<=', selectedMonthRange.end)
     );
-  }, [user, firestore, currentMonthRange]);
+  }, [user, firestore, selectedMonthRange]);
 
-  const { data: sessions, isLoading } = useCollection<StudySession>(sessionsQuery);
+  const { data: sessions, isLoading: isLoadingSessions } = useCollection<StudySession>(sessionsQuery);
 
-  const allLogs = useMemo(() => {
-    if (!sessions) return [];
-    return sessions.flatMap(s => s.logs).sort((a, b) => b.timestamp - a.timestamp);
-  }, [sessions]);
+  useEffect(() => {
+    if (isLoadingSessions || !sessions) {
+        if (!isLoadingSessions) {
+          setAchievements([]);
+          setIsLoadingAchievements(false);
+        } else {
+          setIsLoadingAchievements(true);
+        }
+        return;
+    };
+    
+    const marathonRunner = sessions.some(s => s.totalFocusTime >= 7200); // 2 hours
+    const distractionAvoider = sessions.some(s => s.logs.every(l => l.category !== 'Distraction'));
+    const nightOwl = sessions.some(s => s.startTime && getHours(s.startTime.toDate()) >= 0 && getHours(s.startTime.toDate()) < 4);
+
+    const totalFocus = sessions.reduce((acc, s) => acc + s.totalFocusTime, 0) / 3600; // in hours
+
+    const focusLevels = [
+      { title: 'Focus Apprentice', description: 'Log 5 hours of focus this month.', achieved: totalFocus >= 5, icon: <Award className="h-8 w-8 text-yellow-500" /> },
+      { title: 'Focus Journeyman', description: 'Log 15 hours of focus this month.', achieved: totalFocus >= 15, icon: <Award className="h-8 w-8 text-blue-500" /> },
+      { title: 'Focus Master', description: 'Log 30 hours of focus this month.', achieved: totalFocus >= 30, icon: <Award className="h-8 w-8 text-purple-500" /> },
+    ];
+    
+    const uniqueDays = [...new Set(sessions.map(s => startOfDay(s.startTime.toDate()).getTime()))]
+        .sort()
+        .map(t => new Date(t));
+
+    let maxStreak = 0;
+    if (uniqueDays.length > 0) {
+        maxStreak = 1;
+        let currentStreak = 1;
+        for (let i = 1; i < uniqueDays.length; i++) {
+            const dayBefore = new Date(uniqueDays[i]);
+            dayBefore.setDate(dayBefore.getDate() - 1);
+            if (dayBefore.getTime() === uniqueDays[i-1].getTime()) {
+                currentStreak++;
+            } else {
+                currentStreak = 1;
+            }
+            maxStreak = Math.max(maxStreak, currentStreak);
+        }
+    }
+
+    const calculatedAchievements = [
+      ...focusLevels,
+      { icon: <Zap className="h-8 w-8 text-red-500" />, title: 'Marathon Runner', description: 'Complete a session longer than 2 hours.', achieved: marathonRunner },
+      { icon: <Star className="h-8 w-8 text-green-500" />, title: 'Distraction Avoider', description: 'Finish a session with zero distractions.', achieved: distractionAvoider },
+      { icon: <Moon className="h-8 w-8 text-indigo-500" />, title: 'Night Owl', description: 'Study past midnight.', achieved: nightOwl },
+      { icon: <Star className="h-8 w-8 text-orange-500" />, title: 'Focus Streak: 3 Days', description: 'Complete sessions on 3 consecutive days.', achieved: maxStreak >= 3 },
+    ];
+    setAchievements(calculatedAchievements.filter(a => a.achieved));
+    setIsLoadingAchievements(false);
+    
+  }, [sessions, isLoadingSessions]);
 
   useEffect(() => {
     if (!isUserLoading && !user) {
@@ -64,16 +109,8 @@ export default function MonthlyLogsPage() {
     }
   }, [user, isUserLoading, router]);
 
-  const formatDuration = (seconds: number) => {
-    if (isNaN(seconds) || seconds < 0) return '0m';
-    if (seconds < 60) return `${Math.round(seconds)}s`;
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    if (h > 0) return `${h}h ${m}m`;
-    return `${m}m`;
-  };
 
-  if (isLoading || isUserLoading || !user) {
+  if (isUserLoading || !user) {
     return (
       <div className="flex h-screen items-center justify-center">
         <Loader className="h-8 w-8 animate-spin" />
@@ -91,49 +128,64 @@ export default function MonthlyLogsPage() {
           <CardHeader>
             <div className="flex flex-wrap justify-between items-center gap-4">
               <div>
-                <CardTitle>Monthly Achievement Logs</CardTitle>
+                <CardTitle>Monthly Achievement Log</CardTitle>
                 <CardDescription>
-                  All your recorded activities for the current month that contribute to your achievements.
+                  Achievements you earned in {format(selectedDate, 'MMMM yyyy')}.
                 </CardDescription>
               </div>
-              <Button asChild variant="outline">
-                <Link href="/gamification">
-                  <ArrowLeft className="mr-2 h-4 w-4" />
-                  Back to Achievements
-                </Link>
-              </Button>
+              <div className="flex items-center gap-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant={'outline'}
+                      className={cn(
+                        'w-full sm:w-[200px] justify-start text-left font-normal'
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {format(selectedDate, 'MMMM yyyy')}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={selectedDate}
+                      onSelect={(date) => date && setSelectedDate(date)}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+                <Button asChild variant="outline">
+                  <Link href="/gamification">
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Back
+                  </Link>
+                </Button>
+              </div>
             </div>
           </CardHeader>
-          <CardContent>
-            <ScrollArea className="h-[60vh] rounded-md border bg-background/50 p-4">
-              {allLogs.length > 0 ? (
-                <div className="space-y-4">
-                  {allLogs.map((log) => (
-                    <div key={log.id} className="flex items-start gap-3 text-sm">
-                      <div>{categoryIcons[log.category] || <FileQuestion className="h-4 w-4 text-muted-foreground" />}</div>
-                      <div className="flex-grow">
-                        <p className="font-medium">{log.category}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {log.reasoning}
-                        </p>
-                      </div>
-                      <div className="whitespace-nowrap text-right text-xs text-muted-foreground">
-                        <p>{formatDuration(log.duration)}</p>
-                        <p>
-                          {formatDistanceToNow(new Date(log.timestamp), {
-                            addSuffix: true,
-                          })}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
+          <CardContent className="min-h-[20rem] flex items-center justify-center">
+             {(isLoadingSessions || isLoadingAchievements) ? (
+                <Loader className="h-8 w-8 animate-spin" />
+             ) : achievements.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
+                {achievements.map((achievement, index) => (
+                    <Card key={index} className={`${glassmorphismStyle}`}>
+                    <CardHeader className="flex flex-row items-center gap-4 space-y-0 pb-2">
+                        {achievement.icon}
+                        <CardTitle className="text-lg">{achievement.title}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <CardDescription>{achievement.description}</CardDescription>
+                    </CardContent>
+                    </Card>
+                ))}
                 </div>
               ) : (
-                <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
-                  <p>No logs recorded this month.</p>
+                <div className="text-sm text-muted-foreground">
+                  <p>No achievements earned in {format(selectedDate, 'MMMM yyyy')}.</p>
                 </div>
               )}
-            </ScrollArea>
           </CardContent>
         </Card>
       </main>
