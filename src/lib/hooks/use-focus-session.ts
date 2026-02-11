@@ -16,6 +16,8 @@ import { addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/no
 const AWAY_THRESHOLD = 3; // seconds
 const AUDIT_INTERVAL = 120 * 1000; // 2 minutes in milliseconds
 const FIRESTORE_UPDATE_INTERVAL = 15 * 1000; // 15 seconds
+const BEEP_INTERVAL = 5000; // 5 seconds
+const BEEP_DURATION_LIMIT = 5 * 60 * 1000; // 5 minutes
 
 type UseFocusSessionProps = {
   enabled: boolean;
@@ -40,6 +42,10 @@ export function useFocusSession({
 
   const { toast } = useToast();
   const { firestore, user } = useFirebase();
+
+  const beepIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const distractionStartTimeRef = useRef<number | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -88,6 +94,16 @@ export function useFocusSession({
       faceLandmarkerRef.current.close();
       faceLandmarkerRef.current = null;
     }
+
+    if (beepIntervalRef.current) {
+      clearInterval(beepIntervalRef.current);
+      beepIntervalRef.current = null;
+    }
+    distractionStartTimeRef.current = null;
+    if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+      audioContextRef.current.close();
+      audioContextRef.current = null;
+    }
   }, [webcamVideoRef, screenVideoRef]);
 
   const addLog = useCallback((category: ActivityCategory, reasoning: string, duration: number) => {
@@ -116,6 +132,61 @@ export function useFocusSession({
     });
     lastFirestoreUpdateRef.current = now;
   }, [sessionId, time, logs, user, firestore]);
+
+  const playBeep = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    if (!audioContextRef.current) {
+      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+    }
+    const audioContext = audioContextRef.current;
+    if (audioContext.state === 'suspended') {
+      audioContext.resume();
+    }
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(880, audioContext.currentTime); // A5 note
+    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime + 0.1); // Beep for 100ms
+  }, []);
+
+  useEffect(() => {
+    if (focusState === 'distraction' && status === 'running' && permissions.screen) {
+      if (beepIntervalRef.current === null) {
+        distractionStartTimeRef.current = Date.now();
+        playBeep();
+        beepIntervalRef.current = setInterval(() => {
+          if (distractionStartTimeRef.current && Date.now() - distractionStartTimeRef.current < BEEP_DURATION_LIMIT) {
+            playBeep();
+          } else {
+            if (beepIntervalRef.current) {
+              clearInterval(beepIntervalRef.current);
+              beepIntervalRef.current = null;
+              distractionStartTimeRef.current = null;
+            }
+          }
+        }, BEEP_INTERVAL);
+      }
+    } else {
+      if (beepIntervalRef.current) {
+        clearInterval(beepIntervalRef.current);
+        beepIntervalRef.current = null;
+        distractionStartTimeRef.current = null;
+      }
+    }
+
+    return () => {
+      if (beepIntervalRef.current) {
+        clearInterval(beepIntervalRef.current);
+      }
+    };
+  }, [focusState, status, playBeep, permissions.screen]);
 
   const runScreenAudit = useCallback(async () => {
     if (!permissions.screen || !screenVideoRef.current || screenVideoRef.current.readyState < 2) return;

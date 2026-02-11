@@ -39,7 +39,7 @@ const analyzeScreenActivityPrompt = ai.definePrompt({
   name: 'analyzeScreenActivityPrompt',
   input: {schema: AnalyzeScreenActivityInputSchema},
   output: {schema: AnalyzeScreenActivityOutputSchema},
-  prompt: `Analyze this screen. Categorize the activity using one of the following categories: 'Coding', 'Mathematics', 'Academic Research', 'Distraction'{{#if customCategories}}{{#each customCategories}}, '{{this}}'{{/each}}{{/if}}. Return only a JSON object: {category: string, reasoning: string}.\n\nScreen: {{media url=photoDataUri}}`,
+  prompt: `Analyze this screen. Categorize the activity using one of the following categories: 'Coding', 'Mathematics', 'Academic Research', 'Distraction'{{#if customCategories}}{{#each customCategories}}, '{{this}}'{{/each}}{{/if}}. Consider websites like Instagram, Facebook, Twitter, or video streaming sites as 'Distraction' unless the context clearly indicates they are being used for academic research. Return only a JSON object: {category: string, reasoning: string}.\n\nScreen: {{media url=photoDataUri}}`,
 });
 
 const analyzeScreenActivityFlow = ai.defineFlow(
