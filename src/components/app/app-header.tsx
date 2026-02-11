@@ -115,7 +115,7 @@ export function AppHeader({ activePage, children }: AppHeaderProps) {
   return (
     <header
       className={cn(
-        'fixed z-50 flex h-16 items-center justify-between px-4 backdrop-blur-lg transition-all duration-300 sm:px-6 bg-background/80',
+        'fixed z-50 flex h-16 items-center justify-between px-4 backdrop-blur-lg shadow-xl transition-all duration-300 sm:px-6 bg-background/80',
         {
           '-translate-y-[120%]': isHeaderHidden,
           'top-0 left-0 right-0 rounded-none border-b border-border/20': isScrolled,
