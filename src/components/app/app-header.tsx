@@ -78,20 +78,26 @@ export function AppHeader({ activePage, children }: AppHeaderProps) {
   const { user, auth } = useFirebase();
   const router = useRouter();
   const [isHeaderHidden, setHeaderHidden] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
   const lastScrollY = useRef(0);
 
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
+
+      // Logic to hide/show header
       if (currentScrollY > 100 && currentScrollY > lastScrollY.current) {
         setHeaderHidden(true);
       } else {
         setHeaderHidden(false);
       }
       lastScrollY.current = currentScrollY;
+      
+      // Logic to change header shape
+      setIsScrolled(currentScrollY > 10);
     };
 
-    window.addEventListener('scroll', handleScroll);
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
@@ -109,8 +115,12 @@ export function AppHeader({ activePage, children }: AppHeaderProps) {
   return (
     <header
       className={cn(
-        'fixed top-0 left-0 right-0 z-50 flex h-16 items-center justify-between border-b border-border/20 bg-background/80 px-4 backdrop-blur-lg transition-transform duration-300 sm:px-6',
-        { '-translate-y-full': isHeaderHidden }
+        'fixed z-50 flex h-16 items-center justify-between px-4 backdrop-blur-lg transition-all duration-300 sm:px-6 bg-background/80',
+        {
+          '-translate-y-[120%]': isHeaderHidden,
+          'top-0 left-0 right-0 rounded-none border-b border-border/20': isScrolled,
+          'top-4 left-4 right-4 rounded-xl border border-border/20': !isScrolled,
+        }
       )}
     >
       <div className="flex items-center gap-2 sm:gap-4">
