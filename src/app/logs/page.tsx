@@ -116,6 +116,10 @@ export default function MonthlyAchievementLogsPage() {
     );
   }
 
+  const creationYear = user.metadata.creationTime ? new Date(user.metadata.creationTime).getFullYear() : new Date().getFullYear();
+  const currentYear = new Date().getFullYear();
+  const availableYears = Array.from({ length: currentYear - creationYear + 1 }, (_, i) => currentYear - i);
+
   const glassmorphismStyle = 'bg-card/30 backdrop-blur-lg border border-border/50 shadow-xl transition-all duration-300 hover:shadow-2xl hover:-translate-y-1';
 
   return (
@@ -161,8 +165,7 @@ export default function MonthlyAchievementLogsPage() {
                     <SelectValue placeholder="Year" />
                   </SelectTrigger>
                   <SelectContent>
-                    {Array.from({ length: 5 }).map((_, i) => {
-                      const year = new Date().getFullYear() - i;
+                    {availableYears.map((year) => {
                       return (
                         <SelectItem key={year} value={String(year)}>
                           {year}
