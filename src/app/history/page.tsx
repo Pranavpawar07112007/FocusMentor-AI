@@ -1,20 +1,15 @@
 'use client';
 
 import { SessionHistory } from '@/components/app/session-history';
-import { Button } from '@/components/ui/button';
 import { useFirebase } from '@/firebase';
-import { Loader, Calendar as CalendarIcon } from 'lucide-react';
+import { Loader } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { AppHeader } from '@/components/app/app-header';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
-import { cn } from '@/lib/utils';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+
 
 export default function HistoryPage() {
   const { user, isUserLoading } = useFirebase();
@@ -26,6 +21,20 @@ export default function HistoryPage() {
       router.replace('/login');
     }
   }, [user, isUserLoading, router]);
+  
+  const handleDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const dateString = event.target.value;
+    if (dateString) {
+      // The input value is in 'YYYY-MM-DD' format.
+      // This parsing avoids timezone issues by setting the date in the local timezone.
+      const [year, month, day] = dateString.split('-').map(Number);
+      setDate(new Date(year, month - 1, day));
+    } else {
+      setDate(undefined);
+    }
+  };
+  
+  const dateValue = date ? format(date, 'yyyy-MM-dd') : '';
 
   if (isUserLoading || !user) {
     return (
@@ -52,28 +61,16 @@ export default function HistoryPage() {
                 Review your past focus sessions and analyze your productivity trends.
               </p>
             </div>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant={'outline'}
-                  className={cn(
-                    'w-full sm:w-[280px] justify-start text-left font-normal',
-                    !date && 'text-muted-foreground'
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {date ? format(date, 'PPP') : <span>Filter by specific date</span>}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0">
-                <Calendar
-                  mode="single"
-                  selected={date}
-                  onSelect={setDate}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
+            <div className="flex items-center gap-2">
+              <Label htmlFor="date-filter">Filter by date</Label>
+              <Input
+                id="date-filter"
+                type="date"
+                value={dateValue}
+                onChange={handleDateChange}
+                className="w-full sm:w-auto"
+              />
+            </div>
           </div>
         </div>
 
