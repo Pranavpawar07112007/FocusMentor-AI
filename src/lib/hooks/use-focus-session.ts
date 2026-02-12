@@ -42,6 +42,17 @@ export function useFocusSession({
 
   const { toast } = useToast();
   const { firestore, user } = useFirebase();
+  
+  // Refs to hold the latest state values for use in stale closures
+  const timeRef = useRef(time);
+  useEffect(() => { timeRef.current = time; }, [time]);
+
+  const logsRef = useRef(logs);
+  useEffect(() => { logsRef.current = logs; }, [logs]);
+  
+  const statusRef = useRef(status);
+  useEffect(() => { statusRef.current = status; }, [status]);
+
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -105,7 +116,7 @@ export function useFocusSession({
     return newLog;
   }, []);
 
-  const updateFirestore = useCallback(async (newLogs: LogEntry[], force = false) => {
+  const updateFirestore = useCallback(async (force = false) => {
     if (!sessionId || !user || !firestore) return;
     const now = Date.now();
     if (!force && now - lastFirestoreUpdateRef.current < FIRESTORE_UPDATE_INTERVAL) {
@@ -114,11 +125,11 @@ export function useFocusSession({
 
     const sessionRef = doc(firestore, 'users', user.uid, 'study_sessions', sessionId);
     updateDocumentNonBlocking(sessionRef, {
-      totalFocusTime: time,
-      logs: logs.concat(newLogs),
+      totalFocusTime: timeRef.current,
+      logs: logsRef.current,
     });
     lastFirestoreUpdateRef.current = now;
-  }, [sessionId, time, logs, user, firestore]);
+  }, [sessionId, user, firestore]);
 
   useEffect(() => {
     const playVocalReminder = async () => {
@@ -168,13 +179,12 @@ export function useFocusSession({
       if (result.category === 'Distraction') {
         setFocusState('distraction');
       } else {
-        // If not distracted, and user is present, state is focus
-        if (status === 'running') {
+        if (statusRef.current === 'running') {
           setFocusState('focus');
         }
       }
-      const newLog = addLog(result.category, result.reasoning, AUDIT_INTERVAL / 1000);
-      updateFirestore([newLog]);
+      addLog(result.category, result.reasoning, AUDIT_INTERVAL / 1000);
+      updateFirestore();
     } catch (error) {
       console.error('AI screen audit failed:', error);
       toast({
@@ -183,7 +193,7 @@ export function useFocusSession({
         description: 'Could not analyze screen activity.',
       });
     }
-  }, [screenVideoRef, addLog, updateFirestore, toast, status, customCategoryNames, permissions.screen]);
+  }, [screenVideoRef, addLog, updateFirestore, toast, customCategoryNames, permissions.screen]);
 
   const predictWebcam = useCallback(() => {
     if (!permissions.webcam) return;
@@ -204,10 +214,11 @@ export function useFocusSession({
 
     try {
         const results = faceLandmarkerRef.current.detectForVideo(video, timestamp);
+        const currentStatus = statusRef.current;
 
         if (results && results.faceLandmarks && results.faceLandmarks.length > 0) {
             lastFaceSeenTimeRef.current = Date.now();
-            if (status === 'paused' && awayStartTimeRef.current) {
+            if (currentStatus === 'paused' && awayStartTimeRef.current) {
                 const awayDuration = Math.round((Date.now() - awayStartTimeRef.current) / 1000);
                 addLog('Away', `User returned after ${awayDuration}s`, awayDuration);
                 awayStartTimeRef.current = null;
@@ -215,7 +226,7 @@ export function useFocusSession({
                 setFocusState('focus');
             }
         } else {
-            if (status === 'running' && !awayStartTimeRef.current) {
+            if (currentStatus === 'running' && !awayStartTimeRef.current) {
                 if (Date.now() - lastFaceSeenTimeRef.current > AWAY_THRESHOLD * 1000) {
                     setStatus('paused');
                     setFocusState('away');
@@ -226,7 +237,7 @@ export function useFocusSession({
     } catch (e) {
         console.error("Error during face detection:", e);
     }
-  }, [status, webcamVideoRef, addLog, permissions.webcam]);
+  }, [webcamVideoRef, addLog, permissions.webcam]);
 
   useEffect(() => {
     let timerId: NodeJS.Timeout;
@@ -385,6 +396,7 @@ export function useFocusSession({
 
       if (sessionPermissions.screen) {
         auditIntervalRef.current = setInterval(runScreenAudit, AUDIT_INTERVAL);
+        runScreenAudit();
       }
 
     } catch (err) {
@@ -402,7 +414,7 @@ export function useFocusSession({
   const endSession = useCallback(async (): Promise<string | null> => {
     if (!sessionId || !user || !firestore) return null;
 
-    const finalLogs = [...logs];
+    const finalLogs = [...logsRef.current];
     if (awayStartTimeRef.current !== null) {
       const awayDuration = Math.round((Date.now() - awayStartTimeRef.current) / 1000);
       finalLogs.push({
@@ -434,7 +446,7 @@ export function useFocusSession({
     updateDocumentNonBlocking(sessionRef, {
       endTime: serverTimestamp(),
       status: 'completed',
-      totalFocusTime: time,
+      totalFocusTime: timeRef.current,
       logs: finalLogs,
       summary: sessionSummaryText,
     });
@@ -442,7 +454,7 @@ export function useFocusSession({
     setStatus('stopped');
     setGoal(null);
     return sessionId;
-  }, [sessionId, cleanup, time, logs, firestore, user, permissions.screen]);
+  }, [sessionId, cleanup, firestore, user, permissions.screen]);
   
   useEffect(() => {
     return () => {
