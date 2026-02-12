@@ -21,12 +21,12 @@ import {
   DialogFooter,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { Slider } from '@/components/ui/slider';
+import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Checkbox } from '@/components/ui/checkbox';
 import { decomposeGoal } from '@/ai/flows/decompose-goal-flow';
 
 export default function Home() {
@@ -36,14 +36,16 @@ export default function Home() {
   const router = useRouter();
 
   const [isGoalDialogOpen, setIsGoalDialogOpen] = useState(false);
-  const [goalDescription, setGoalDescription] = useState('');
-  const [goalDuration, setGoalDuration] = useState(3600);
+  
+  // States for the dialog
+  const [goalDuration, setGoalDuration] = useState(60); // In minutes
   const [useWebcam, setUseWebcam] = useState(true);
   const [useScreen, setUseScreen] = useState(true);
-
   const [highLevelGoal, setHighLevelGoal] = useState('');
   const [decomposedTasks, setDecomposedTasks] = useState<{ title: string; description: string; }[] | null>(null);
   const [isDecomposing, setIsDecomposing] = useState(false);
+  const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
+  const [customTask, setCustomTask] = useState('');
 
   const { user, isUserLoading } = useFirebase();
 
@@ -80,7 +82,8 @@ export default function Home() {
       setHighLevelGoal('');
       setDecomposedTasks(null);
       setIsDecomposing(false);
-      setGoalDescription('');
+      setSelectedTasks([]);
+      setCustomTask('');
     }
   };
 
@@ -102,28 +105,34 @@ export default function Home() {
       setIsDecomposing(false);
     }
   };
+  
+  const handleTaskSelection = (taskDescription: string, isSelected: boolean) => {
+      setSelectedTasks(prev => 
+          isSelected ? [...prev, taskDescription] : prev.filter(d => d !== taskDescription)
+      );
+  };
 
   const handleStartSession = useCallback(async () => {
-    if (decomposedTasks && decomposedTasks.length > 0 && !goalDescription) {
-      toast({
-        variant: 'destructive',
-        title: 'Please select a task',
-        description: 'You must choose one of the AI-generated tasks to focus on.',
-      });
-      return;
+    let finalGoalDescription = selectedTasks.join(', ');
+    if (customTask) {
+        finalGoalDescription = finalGoalDescription ? `${finalGoalDescription}; ${customTask}` : customTask;
+    }
+    if (!finalGoalDescription && highLevelGoal) {
+        finalGoalDescription = highLevelGoal;
     }
     
     const goalToSet = {
-      description: goalDescription || 'Complete a focused study session.',
-      targetDuration: goalDuration,
+      description: finalGoalDescription || 'Complete a focused study session.',
+      targetDuration: goalDuration * 60, // Convert minutes to seconds
     };
+
     const permissions = {
       webcam: useWebcam,
       screen: useScreen,
     };
     await startSession({ goalInput: goalToSet, permissions });
-    setIsGoalDialogOpen(false);
-  }, [startSession, goalDescription, goalDuration, useWebcam, useScreen, toast, decomposedTasks]);
+    handleDialogOpenChange(false); // Close dialog on start
+  }, [startSession, selectedTasks, customTask, highLevelGoal, goalDuration, useWebcam, useScreen]);
 
 
   const handleEndSession = useCallback(async () => {
@@ -142,13 +151,6 @@ export default function Home() {
         <Loader className="h-8 w-8 animate-spin" />
       </div>
     );
-  }
-
-  const formatSliderLabel = (seconds: number) => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    if (hours > 0) return `${hours}h ${minutes}m`;
-    return `${minutes}m`;
   }
 
   return (
@@ -227,76 +229,89 @@ export default function Home() {
                     <DialogHeader>
                       <DialogTitle>Set Up Your Focus Session</DialogTitle>
                       <DialogDescription>
-                        {decomposedTasks ? "Select a sub-task for this session." : "Describe your main objective and let AI create a plan."}
+                        Define your goal, configure your session, and start focusing.
                       </DialogDescription>
                     </DialogHeader>
 
-                    {/* Step 1: Input Goal */}
-                    {!decomposedTasks && !isDecomposing && (
-                      <div className="space-y-4 pt-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="high-level-goal">What's your main objective?</Label>
-                          <Textarea 
-                            id="high-level-goal" 
-                            placeholder="e.g., Prepare for my history final exam"
-                            value={highLevelGoal}
-                            onChange={(e) => setHighLevelGoal(e.target.value)}
-                            rows={3}
-                          />
-                        </div>
-                        <Button onClick={handleDecomposeGoal} className="w-full">
-                          <BrainCircuit className="mr-2 h-4 w-4" />
-                          Let AI Plan Your Tasks
-                        </Button>
-                      </div>
-                    )}
+                    {/* Step 1 or 2 Content */}
+                    <div className="space-y-6 max-h-[70vh] overflow-y-auto pr-2 pt-4">
 
-                    {/* Loading State */}
-                    {isDecomposing && (
-                      <div className="flex items-center justify-center h-48">
-                        <Loader className="h-8 w-8 animate-spin" />
-                        <p className="ml-4 text-muted-foreground">AI is planning your tasks...</p>
-                      </div>
-                    )}
-                    
-                    {/* Step 2: Select Task & Configure */}
-                    {decomposedTasks && !isDecomposing && (
-                      <div className="space-y-6 max-h-[70vh] overflow-y-auto pr-2">
-                        <div>
-                          <Label>Select a Task to Focus On</Label>
-                          <RadioGroup 
-                            value={goalDescription} 
-                            onValueChange={setGoalDescription}
-                            className="mt-2 space-y-2"
-                          >
+                      {/* Goal Input */}
+                      {!decomposedTasks && !isDecomposing && (
+                        <div className="space-y-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="high-level-goal">What's your main objective?</Label>
+                            <Textarea 
+                              id="high-level-goal" 
+                              placeholder="e.g., Prepare for my history final exam"
+                              value={highLevelGoal}
+                              onChange={(e) => setHighLevelGoal(e.target.value)}
+                              rows={3}
+                            />
+                          </div>
+                          <Button onClick={handleDecomposeGoal} className="w-full">
+                            <BrainCircuit className="mr-2 h-4 w-4" />
+                            Let AI Plan Your Tasks
+                          </Button>
+                        </div>
+                      )}
+
+                      {/* Loading State */}
+                      {isDecomposing && (
+                        <div className="flex items-center justify-center h-48">
+                          <Loader className="h-8 w-8 animate-spin" />
+                          <p className="ml-4 text-muted-foreground">AI is planning your tasks...</p>
+                        </div>
+                      )}
+                      
+                      {/* Task Selection */}
+                      {decomposedTasks && !isDecomposing && (
+                        <div className="space-y-4">
+                          <Label>Select tasks for this session (optional)</Label>
+                          <div className="space-y-2 rounded-md border p-3">
                             {decomposedTasks.map((task, index) => (
-                              <Label key={index} htmlFor={`task-${index}`} className="flex items-start gap-3 rounded-md border p-3 hover:bg-accent has-[[data-state=checked]]:bg-accent cursor-pointer">
-                                <RadioGroupItem value={task.description} id={`task-${index}`} className="mt-1"/>
-                                <div>
-                                  <p className="font-medium">{task.title}</p>
+                              <div key={index} className="flex items-start gap-3">
+                                <Checkbox 
+                                  id={`task-${index}`}
+                                  onCheckedChange={(checked) => handleTaskSelection(task.description, !!checked)}
+                                />
+                                <div className="grid gap-1.5 leading-none">
+                                  <label htmlFor={`task-${index}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                                    {task.title}
+                                  </label>
                                   <p className="text-sm text-muted-foreground">{task.description}</p>
                                 </div>
-                              </Label>
+                              </div>
                             ))}
-                          </RadioGroup>
-                        </div>
+                          </div>
 
-                        <div className="space-y-2">
-                          <Label htmlFor="goal-duration">Target Duration</Label>
-                          <Slider
-                            id="goal-duration"
-                            min={900}
-                            max={14400}
-                            step={900}
-                            value={[goalDuration]}
-                            onValueChange={(value) => setGoalDuration(value[0])}
-                          />
-                          <div className="text-center text-sm text-muted-foreground">
-                            {formatSliderLabel(goalDuration)}
+                          <div className="space-y-2">
+                            <Label htmlFor="custom-task">Or add a custom task</Label>
+                            <Input 
+                              id="custom-task"
+                              placeholder="e.g., Review chapter 5 notes"
+                              value={customTask}
+                              onChange={(e) => setCustomTask(e.target.value)}
+                            />
                           </div>
                         </div>
+                      )}
 
-                        <Separator />
+                      <Separator />
+
+                      {/* Session Configuration */}
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="goal-duration">Target Duration (in minutes)</Label>
+                          <Input
+                            id="goal-duration"
+                            type="number"
+                            min="15"
+                            step="15"
+                            value={goalDuration}
+                            onChange={(e) => setGoalDuration(Number(e.target.value))}
+                          />
+                        </div>
 
                         <div className="space-y-3">
                           <Label>Monitoring Options</Label>
@@ -334,14 +349,15 @@ export default function Home() {
                             </p>
                           )}
                         </div>
-
-                        <DialogFooter>
-                          <Button onClick={handleStartSession}>
-                            Start Session
-                          </Button>
-                        </DialogFooter>
                       </div>
-                    )}
+
+                    </div>
+                    
+                    <DialogFooter className="pt-4">
+                      <Button onClick={handleStartSession}>
+                        Start Session
+                      </Button>
+                    </DialogFooter>
                   </DialogContent>
                 </Dialog>
               ) : status === 'initializing' ? (
@@ -396,3 +412,5 @@ export default function Home() {
     </div>
   );
 }
+
+    
