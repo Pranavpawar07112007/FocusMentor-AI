@@ -138,10 +138,10 @@ export function useFocusSession({
           ? `Let's get back to your goal: ${goal.description}`
           : "You seem a little distracted. Let's get back to focusing.";
         
-        const { media } = await generateAudio(reminderText);
+        const result = await generateAudio(reminderText);
         
-        if (media) {
-          const audio = new Audio(media);
+        if (result && result.media) {
+          const audio = new Audio(result.media);
           audio.play();
         }
       } catch (e) {
@@ -176,6 +176,8 @@ export function useFocusSession({
 
     try {
       const result = await analyzeScreenActivity({ photoDataUri: dataUri, customCategories: customCategoryNames });
+      
+      // Always update focus state based on the audit result
       if (result.category === 'Distraction') {
         setFocusState('distraction');
       } else {
@@ -183,6 +185,17 @@ export function useFocusSession({
           setFocusState('focus');
         }
       }
+
+      // Check if the detected activity is the same as the last logged one.
+      const currentLogs = logsRef.current;
+      const lastLog = currentLogs.length > 0 ? currentLogs[currentLogs.length - 1] : null;
+
+      // If the category is the same, don't add a new log.
+      if (lastLog && lastLog.category === result.category) {
+        return; // Skip logging duplicate activities
+      }
+      
+      // If the activity is new, add it to the log.
       addLog(result.category, result.reasoning, AUDIT_INTERVAL / 1000);
       updateFirestore();
     } catch (error) {
@@ -395,8 +408,10 @@ export function useFocusSession({
       setFocusState('focus');
 
       if (sessionPermissions.screen) {
-        auditIntervalRef.current = setInterval(runScreenAudit, AUDIT_INTERVAL);
+        // Run first audit immediately
         runScreenAudit();
+        // Then set the interval
+        auditIntervalRef.current = setInterval(runScreenAudit, AUDIT_INTERVAL);
       }
 
     } catch (err) {
