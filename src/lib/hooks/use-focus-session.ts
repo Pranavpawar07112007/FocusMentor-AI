@@ -9,7 +9,6 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { analyzeScreenActivity } from '@/ai/flows/analyze-screen-activity';
 import { summarizeStudySession } from '@/ai/flows/summarize-study-session';
-import { generateAudio } from '@/ai/flows/generate-audio-flow';
 import type { SessionStatus, FocusState, LogEntry, StudySession, ActivityCategory, Goal, CustomCategory } from '@/types';
 import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
@@ -38,7 +37,6 @@ export function useFocusSession({
   const [goal, setGoal] = useState<Goal | null>(null);
   const [isPrivacyShieldActive, setIsPrivacyShieldActive] = useState(true);
   const [permissions, setPermissions] = useState<{ webcam: boolean; screen: boolean }>({ webcam: false, screen: false });
-  const [hasPlayedDistractionWarning, setHasPlayedDistractionWarning] = useState(false);
 
   const { toast } = useToast();
   const { firestore, user } = useFirebase();
@@ -132,35 +130,50 @@ export function useFocusSession({
   }, [sessionId, user, firestore]);
 
   useEffect(() => {
-    const playVocalReminder = async () => {
-      try {
-        const reminderText = goal?.description
-          ? `Let's get back to your goal: ${goal.description}`
-          : "You seem a little distracted. Let's get back to focusing.";
-        
-        const result = await generateAudio(reminderText);
-        
-        if (result && result.media) {
-          const audio = new Audio(result.media);
-          audio.play();
+    let beepInterval: NodeJS.Timeout | null = null;
+    let stopBeepingTimeout: NodeJS.Timeout | null = null;
+    let audioContext: AudioContext | null = null;
+
+    const playBeep = () => {
+      // Lazy-initialize AudioContext
+      if (!audioContext) {
+        try {
+          audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+        } catch (e) {
+          console.error("Web Audio API is not supported in this browser.");
+          return;
         }
-      } catch (e) {
-        console.error("Failed to play vocal reminder", e);
-        toast({
-          variant: 'destructive',
-          title: 'AI Audio Error',
-          description: 'Could not generate audio reminder.',
-        });
       }
+      
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(440, audioContext.currentTime); // A4
+      gainNode.gain.setValueAtTime(0.5, audioContext.currentTime);
+      
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.1); // Beep for 0.1s
     };
 
-    if (focusState === 'distraction' && status === 'running' && permissions.screen && !hasPlayedDistractionWarning) {
-      setHasPlayedDistractionWarning(true);
-      playVocalReminder();
-    } else if (focusState === 'focus') {
-      setHasPlayedDistractionWarning(false);
+    if (focusState === 'distraction' && status === 'running' && permissions.screen) {
+      playBeep(); // Play immediately
+      beepInterval = setInterval(playBeep, 5000);
+
+      // Stop beeping after 5 minutes
+      stopBeepingTimeout = setTimeout(() => {
+        if (beepInterval) clearInterval(beepInterval);
+      }, 5 * 60 * 1000);
     }
-  }, [focusState, status, permissions.screen, hasPlayedDistractionWarning, goal?.description, toast]);
+
+    return () => {
+      if (beepInterval) clearInterval(beepInterval);
+      if (stopBeepingTimeout) clearTimeout(stopBeepingTimeout);
+    };
+  }, [focusState, status, permissions.screen]);
 
   const runScreenAudit = useCallback(async () => {
     if (!permissions.screen || !screenVideoRef.current || screenVideoRef.current.readyState < 2) return;
