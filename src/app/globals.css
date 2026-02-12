@@ -79,10 +79,6 @@
 @layer components {
   .animated-background {
     @apply w-full h-full fixed top-0 left-0 -z-10 bg-background;
-    background-image:
-      linear-gradient(to right, hsl(var(--border) / 0.5) 1px, transparent 1px),
-      linear-gradient(to bottom, hsl(var(--border) / 0.5) 1px, transparent 1px);
-    background-size: 40px 40px;
   }
   .circle {
     @apply absolute rounded-full filter blur-2xl opacity-50;
