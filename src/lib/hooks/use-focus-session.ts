@@ -199,16 +199,6 @@ export function useFocusSession({
         }
       }
 
-      // Check if the detected activity is the same as the last logged one.
-      const currentLogs = logsRef.current;
-      const lastLog = currentLogs.length > 0 ? currentLogs[currentLogs.length - 1] : null;
-
-      // If the category is the same, don't add a new log.
-      if (lastLog && lastLog.category === result.category) {
-        return; // Skip logging duplicate activities
-      }
-      
-      // If the activity is new, add it to the log.
       addLog(result.category, result.reasoning, AUDIT_INTERVAL / 1000);
       updateFirestore();
     } catch (error) {
