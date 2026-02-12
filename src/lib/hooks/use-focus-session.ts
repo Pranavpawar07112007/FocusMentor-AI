@@ -176,7 +176,7 @@ export function useFocusSession({
   }, [focusState, status, permissions.screen]);
 
   const runScreenAudit = useCallback(async () => {
-    if (!permissions.screen || !screenVideoRef.current || screenVideoRef.current.readyState < 2) return;
+    if (!screenVideoRef.current || screenVideoRef.current.readyState < 2) return;
     
     const canvas = document.createElement('canvas');
     canvas.width = screenVideoRef.current.videoWidth;
@@ -219,7 +219,7 @@ export function useFocusSession({
         description: 'Could not analyze screen activity.',
       });
     }
-  }, [screenVideoRef, addLog, updateFirestore, toast, customCategoryNames, permissions.screen]);
+  }, [screenVideoRef, addLog, updateFirestore, toast, customCategoryNames]);
 
   const predictWebcam = useCallback(() => {
     if (!permissions.webcam) return;
@@ -393,7 +393,6 @@ export function useFocusSession({
         userId: user.uid,
         startTime: Timestamp.now(),
         endTime: null,
-        totalFocusTime: 0,
         status: 'active',
         logs: [],
         permissions: sessionPermissions,
