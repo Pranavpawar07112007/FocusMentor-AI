@@ -81,7 +81,7 @@
     @apply w-full h-full fixed top-0 left-0 -z-10 bg-background;
   }
   .circle {
-    @apply absolute rounded-full filter blur-2xl opacity-50;
+    @apply absolute rounded-full filter blur-2xl opacity-70;
     animation: morph 15s ease-in-out infinite;
   }
   .circle-1 {
